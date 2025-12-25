@@ -14,10 +14,10 @@
 
 3. **Configure Service:**
    ```
-   Name: kobo-library-backend
+   Name: b2-highlights-fetch-service
    Region: Choose closest to you
    Branch: main (or your default branch)
-   Root Directory: backend
+   Root Directory: b2-highlights-fetch-service
    Runtime: Python 3
    Build Command: pip install -r requirements.txt
    Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
@@ -35,7 +35,7 @@
 5. **Deploy:**
    - Click "Create Web Service"
    - Wait for deployment (first deploy takes ~5 minutes)
-   - **Copy the service URL** (e.g., `https://kobo-library-backend.onrender.com`)
+   - **Copy the service URL** (e.g., `https://b2-highlights-fetch-service.onrender.com`)
 
 ### Step 2: Deploy Frontend to Vercel
 
@@ -51,7 +51,7 @@
 3. **Configure Project:**
    ```
    Framework Preset: Next.js (auto-detected)
-   Root Directory: frontend
+   Root Directory: library-ui
    Build Command: npm install && npm run build
    Output Directory: .next
    ```
@@ -60,7 +60,7 @@
    - Go to "Environment Variables"
    - Add:
    ```
-   NEXT_PUBLIC_API_URL = https://your-backend-url.onrender.com/api
+   NEXT_PUBLIC_API_URL = https://b2-highlights-fetch-service.onrender.com/api
    ```
    (Replace with your actual Render backend URL)
 

@@ -4,8 +4,8 @@ A monorepo for syncing and viewing Kobo e-reader highlights and markups from B2 
 
 ## Structure
 
-- `frontend/`: Next.js application for viewing books and highlights.
-- `backend/`: FastAPI application for syncing with B2 and parsing `KoboReader.sqlite`.
+- `library-ui/`: Next.js application for viewing books and highlights.
+- `b2-highlights-fetch-service/`: FastAPI application for syncing with B2 and parsing `KoboReader.sqlite`.
 
 ## Prerequisites
 
@@ -17,10 +17,10 @@ A monorepo for syncing and viewing Kobo e-reader highlights and markups from B2 
 ## Setup
 
 1. **Configure Backend Environment**:
-   Create `backend/.env` based on `backend/example.env`:
+   Create `b2-highlights-fetch-service/.env` based on `b2-highlights-fetch-service/example.env`:
    ```bash
-   cp backend/example.env backend/.env
-   # Edit backend/.env with your B2 credentials
+   cp b2-highlights-fetch-service/example.env b2-highlights-fetch-service/.env
+   # Edit b2-highlights-fetch-service/.env with your B2 credentials
    ```
 
 ## Usage
@@ -43,7 +43,7 @@ If you cannot run Docker, run the services individually:
 **Backend:**
 
 ```bash
-cd backend
+cd b2-highlights-fetch-service
 pip install -r requirements.txt
 python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -51,7 +51,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 **Frontend:**
 
 ```bash
-cd frontend
+cd library-ui
 npm install
 npm run dev
 ```
@@ -68,8 +68,8 @@ npm run dev
 
 2. **Configure the Service:**
 
-   - **Name**: `kobo-library-backend` (or your preferred name)
-   - **Root Directory**: `backend`
+   - **Name**: `b2-highlights-fetch-service` (or your preferred name)
+   - **Root Directory**: `b2-highlights-fetch-service`
    - **Environment**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
@@ -100,8 +100,8 @@ npm run dev
    - Import your GitHub repository
    - **Root Directory**: Leave as root (Vercel will detect `vercel.json`)
    - **Framework Preset**: Next.js (auto-detected)
-   - **Build Command**: `cd frontend && npm install && npm run build`
-   - **Output Directory**: `frontend/.next`
+   - **Build Command**: `cd library-ui && npm install && npm run build`
+   - **Output Directory**: `library-ui/.next`
 
 3. **Add Environment Variables:**
 
@@ -129,7 +129,7 @@ render deploy
 **Frontend (Vercel):**
 
 ```bash
-cd frontend
+cd library-ui
 vercel
 # Follow the prompts
 ```

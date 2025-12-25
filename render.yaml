@@ -1,8 +1,9 @@
-# Render Blueprint for Backend
+# Render Blueprint for B2 Highlights Fetch Service
 services:
   - type: web
-    name: kobo-library-backend
+    name: b2-highlights-fetch-service
     env: python
+    rootDir: b2-highlights-fetch-service
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:

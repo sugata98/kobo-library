@@ -1,6 +1,6 @@
-# Frontend deployment configuration for Vercel
+# Library UI
 
-This directory contains the Next.js frontend application.
+This directory contains the Next.js frontend application for viewing Kobo books, highlights, and markups.
 
 ## Vercel Deployment
 
