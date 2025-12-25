@@ -1,13 +1,9 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import {
-  getBookHighlights,
-  getBookMarkups,
-  getBookDetails,
-  getBookCoverUrl,
-} from "@/lib/api";
+import { getBookHighlights, getBookMarkups, getBookDetails } from "@/lib/api";
 import Link from "next/link";
+import BookCover from "@/components/BookCover";
 
 // Use the backend proxy endpoints
 const getSvgUrl = (markupId: string) =>
@@ -20,62 +16,87 @@ const getJpgUrl = (markupId: string) =>
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
   }/markup/${markupId}/jpg`;
 
-function BookCoverImage({
-  title,
-  author,
-  isbn,
-}: {
-  title: string;
-  author?: string;
-  isbn?: string;
-}) {
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+// Component to handle markup image loading with state management and progressive loading
+function MarkupImage({ markupId }: { markupId: string }) {
+  const [jpgLoaded, setJpgLoaded] = useState(false);
+  const [svgLoaded, setSvgLoaded] = useState(false);
+  const [jpgError, setJpgError] = useState(false);
+  const [svgError, setSvgError] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
+  const [imageStartedLoading, setImageStartedLoading] = useState(false);
 
-  useEffect(() => {
-    if (title) {
-      getBookCoverUrl(title, author, isbn)
-        .then((url) => {
-          setCoverUrl(url);
-        })
-        .catch(() => {
-          // Silently fail, placeholder will show
-        });
-    }
-  }, [title, author, isbn]);
+  const handleJpgLoad = () => {
+    setJpgLoaded(true);
+  };
+
+  const handleJpgError = () => {
+    setJpgError(true);
+    setShowFallback(true);
+  };
+
+  const handleSvgLoad = () => {
+    setSvgLoaded(true);
+  };
+
+  const handleSvgError = () => {
+    setSvgError(true);
+  };
+
+  // Show loader only before image starts loading
+  // Once image starts, browser will progressively render it
+  const showLoader = !imageStartedLoading && !jpgLoaded && !jpgError;
 
   return (
-    <div className="relative w-32 h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden rounded-lg shadow-md">
-      {coverUrl && (
-        <img
-          src={coverUrl}
-          alt={`${title} cover`}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.style.display = "none";
-            const placeholder = target.parentElement?.querySelector(
-              ".cover-placeholder"
-            ) as HTMLElement;
-            if (placeholder) {
-              placeholder.style.display = "flex";
-            }
-          }}
-        />
-      )}
-      <div className="cover-placeholder absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-500">
-        <svg
-          className="w-12 h-12"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+    <div className="border border-gray-200 p-2 rounded bg-white dark:bg-gray-900 relative w-full">
+      {/* Container for overlay */}
+      <div className="relative w-full min-h-[200px]">
+        {/* Subtle skeleton loader - only shown before image starts loading */}
+        {showLoader && (
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded flex items-center justify-center z-0">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400"></div>
+          </div>
+        )}
+
+        {/* JPG Background - progressively loads as chunks arrive from streaming */}
+        {!showFallback && (
+          <img
+            src={getJpgUrl(markupId)}
+            alt="Page"
+            className="w-full h-auto block relative z-10"
+            onLoad={handleJpgLoad}
+            onError={handleJpgError}
+            onLoadStart={() => {
+              setImageStartedLoading(true);
+            }}
+            onProgress={() => {
+              // Hide loader as soon as we start receiving data
+              setImageStartedLoading(true);
+            }}
+            loading="eager"
+            decoding="async"
           />
-        </svg>
+        )}
+
+        {/* SVG Overlay (positioned absolutely on top) */}
+        {!svgError && jpgLoaded && (
+          <img
+            src={getSvgUrl(markupId)}
+            alt="Markup"
+            className="absolute top-0 left-0 w-full h-full pointer-events-none transition-opacity duration-300"
+            style={{ mixBlendMode: "normal", opacity: svgLoaded ? 1 : 0 }}
+            onLoad={handleSvgLoad}
+            onError={handleSvgError}
+          />
+        )}
+
+        {/* Fallback message */}
+        {showFallback && (
+          <div className="text-xs text-gray-400 text-center p-4">
+            Images not found in B2.
+            <br />
+            (ID: {markupId})
+          </div>
+        )}
       </div>
     </div>
   );
@@ -134,10 +155,12 @@ export default function BookDetails({
 
       <div className="flex items-start gap-6 mb-6">
         {bookInfo && (
-          <BookCoverImage
+          <BookCover
             title={bookInfo.Title}
             author={bookInfo.Author}
             isbn={bookInfo.ISBN}
+            className="relative w-32 h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden rounded-lg shadow-md"
+            iconSize="w-12 h-12"
           />
         )}
         <div>
@@ -219,45 +242,7 @@ export default function BookDetails({
                   )}
 
                   {/* Composite: JPG background with SVG overlay */}
-                  <div className="border border-gray-200 p-2 rounded bg-white dark:bg-gray-900 relative inline-block">
-                    {/* Container for overlay */}
-                    <div className="relative">
-                      {/* JPG Background */}
-                      <img
-                        src={getJpgUrl(m.BookmarkID)}
-                        alt="Page"
-                        className="max-w-full h-auto block"
-                        onError={(e) => {
-                          // If JPG fails, show fallback
-                          const container = (e.target as HTMLImageElement)
-                            .parentElement;
-                          if (container) {
-                            const fallback = container.querySelector(
-                              ".fallback-message"
-                            ) as HTMLElement;
-                            if (fallback) fallback.classList.remove("hidden");
-                          }
-                        }}
-                      />
-                      {/* SVG Overlay (positioned absolutely on top) */}
-                      <img
-                        src={getSvgUrl(m.BookmarkID)}
-                        alt="Markup"
-                        className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                        style={{ mixBlendMode: "normal", opacity: 1 }}
-                        onError={(e) => {
-                          // If SVG fails, just hide it
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                    </div>
-                    {/* Fallback message */}
-                    <div className="hidden fallback-message text-xs text-gray-400 text-center p-4">
-                      Images not found in B2.
-                      <br />
-                      (ID: {m.BookmarkID})
-                    </div>
-                  </div>
+                  <MarkupImage markupId={m.BookmarkID} />
                 </div>
               ))
             )}

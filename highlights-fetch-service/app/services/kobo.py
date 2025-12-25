@@ -85,13 +85,20 @@ class KoboService:
                 LOWER(c1.Title) ASC
         """
         
-        if limit is not None and offset is not None:
-            query += f" LIMIT {limit} OFFSET {offset}"
-        elif limit is not None:
-            query += f" LIMIT {limit}"
+        # Build parameters list: search params first, then limit/offset
+        params = list(search_params) if search_params else []
         
-        if search_params:
-            cursor.execute(query, search_params)
+        # Add LIMIT and OFFSET as bound parameters
+        if limit is not None and offset is not None:
+            query += " LIMIT ? OFFSET ?"
+            params.extend([int(limit), int(offset)])
+        elif limit is not None:
+            query += " LIMIT ?"
+            params.append(int(limit))
+        
+        # Execute with all parameters
+        if params:
+            cursor.execute(query, params)
         else:
             cursor.execute(query)
         books = cursor.fetchall()
@@ -99,8 +106,8 @@ class KoboService:
         
         return books
     
-    def get_total_books(self) -> int:
-        """Get the total count of unique books"""
+    def get_total_books(self, search: Optional[str] = None) -> int:
+        """Get the total count of unique books, optionally filtered by search"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -120,7 +127,20 @@ class KoboService:
                 LIMIT 1
             )
         """
-        cursor.execute(query)
+        
+        # Add search filter if provided
+        search_params = []
+        if search:
+            search_term = f"%{search.lower()}%"
+            query += """
+            AND (LOWER(c1.Title) LIKE ? OR LOWER(c1.Attribution) LIKE ?)
+            """
+            search_params = [search_term, search_term]
+        
+        if search_params:
+            cursor.execute(query, search_params)
+        else:
+            cursor.execute(query)
         result = cursor.fetchone()
         conn.close()
         return result[0] if result else 0

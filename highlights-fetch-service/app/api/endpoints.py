@@ -76,13 +76,8 @@ def get_books(page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     try:
         offset = (page - 1) * page_size
         books = kobo_service.get_books(limit=page_size, offset=offset, search=search)
-        # For search, get total count of matching books
-        if search:
-            # Get all matching books to count (without limit)
-            all_matching = kobo_service.get_books(limit=None, offset=None, search=search)
-            total_books = len(all_matching)
-        else:
-            total_books = kobo_service.get_total_books()
+        # Get total count of matching books (with optional search filter)
+        total_books = kobo_service.get_total_books(search=search)
         total_pages = (total_books + page_size - 1) // page_size if total_books > 0 else 1
         
         logger.info(f"Retrieved {len(books)} books (page {page}, total: {total_books})")
@@ -136,6 +131,78 @@ def get_book_markups(book_id: str):
     except Exception as e:
         logger.error(f"Error fetching markups for {book_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/books/{book_id:path}/cover")
+def get_book_cover(
+    book_id: str, 
+    title: str = Query(None, description="Book title"),
+    author: str = Query(None, description="Book author")
+):
+    """
+    Get book cover image from free online APIs (Open Library, Google Books).
+    
+    Fetches covers directly from online APIs based on book title and author.
+    Pass title (and optionally author) as query parameters.
+    
+    Example: /api/books/{book_id}/cover?title=Clean Code&author=Robert Martin
+    """
+    # Decode URL-encoded parameters
+    if title:
+        title = urllib.parse.unquote(title)
+    if author:
+        author = urllib.parse.unquote(author)
+    
+    logger.info(f"Fetching cover for book_id: {book_id}, title: {title}, author: {author}")
+    
+    # Use provided title/author or fetch from database as fallback
+    if not title:
+        # Fallback: Get from database if title not provided
+        try:
+            if os.path.exists(settings.LOCAL_DB_PATH):
+                decoded_book_id = urllib.parse.unquote(book_id)
+                book = kobo_service.get_book_by_id(decoded_book_id)
+                if not book:
+                    book = kobo_service.get_book_by_id(book_id)
+                
+                if book:
+                    title = book.get('Title')
+                    author = book.get('Author') if not author else author
+                    
+                    # Handle bytes if needed
+                    if isinstance(title, bytes):
+                        title = title.decode('utf-8', errors='ignore')
+                    if isinstance(author, bytes):
+                        author = author.decode('utf-8', errors='ignore')
+        except Exception as e:
+            logger.debug(f"Could not get book info from database: {e}")
+    
+    if not title:
+        raise HTTPException(
+            status_code=400, 
+            detail="Title is required. Pass 'title' as query parameter: /api/books/{book_id}/cover?title=Book Title"
+        )
+    
+    # Fetch cover from free online APIs
+    try:
+        cover_result = cover_service.fetch_cover(title, author)
+        if cover_result:
+            image_bytes, content_type = cover_result
+            logger.info(f"Found cover from online API for: {title}")
+            return Response(content=image_bytes, media_type=content_type)
+        else:
+            logger.warning(f"No cover found in online APIs for: {title} by {author or 'Unknown'}")
+    except Exception as e:
+        logger.error(f"Error fetching cover for {title}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching cover: {str(e)}"
+        )
+    
+    # If no cover found from APIs
+    raise HTTPException(
+        status_code=404, 
+        detail=f"Cover image not found in online APIs for: {title}"
+    )
 
 @router.get("/books/{book_id:path}")
 def get_book_details(book_id: str):
@@ -202,80 +269,3 @@ def get_markup_jpg(markup_id: str):
             continue
             
     raise HTTPException(status_code=404, detail="JPG file not found in B2")
-
-@router.get("/book/{book_id}/cover")
-def get_book_cover(
-    book_id: str, 
-    title: str = Query(None, description="Book title"),
-    author: str = Query(None, description="Book author")
-):
-    """
-    Get book cover image from free online APIs (Open Library, Google Books).
-    
-    Fetches covers directly from online APIs based on book title and author.
-    Pass title (and optionally author) as query parameters.
-    
-    Example: /api/book/{book_id}/cover?title=Clean Code&author=Robert Martin
-    """
-    # Decode URL-encoded parameters
-    if title:
-        title = urllib.parse.unquote(title)
-    if author:
-        author = urllib.parse.unquote(author)
-    
-    logger.info(f"Fetching cover for book_id: {book_id}, title: {title}, author: {author}")
-    
-    # Use provided title/author or fetch from database as fallback
-    if not title:
-        # Fallback: Get from database if title not provided
-        try:
-            if os.path.exists(settings.LOCAL_DB_PATH):
-                decoded_book_id = urllib.parse.unquote(book_id)
-                conn = kobo_service.get_connection()
-                cursor = conn.cursor()
-                cursor.execute("SELECT Title, Attribution FROM content WHERE ContentID = ?", (decoded_book_id,))
-                result = cursor.fetchone()
-                if not result:
-                    cursor.execute("SELECT Title, Attribution FROM content WHERE ContentID = ?", (book_id,))
-                    result = cursor.fetchone()
-                conn.close()
-                
-                if result:
-                    title = result[0]
-                    author = result[1] if not author else author
-                    
-                    # Handle bytes if needed
-                    if isinstance(title, bytes):
-                        title = title.decode('utf-8', errors='ignore')
-                    if isinstance(author, bytes):
-                        author = author.decode('utf-8', errors='ignore')
-        except Exception as e:
-            logger.debug(f"Could not get book info from database: {e}")
-    
-    if not title:
-        raise HTTPException(
-            status_code=400, 
-            detail="Title is required. Pass 'title' as query parameter: /api/book/{book_id}/cover?title=Book Title"
-        )
-    
-    # Fetch cover from free online APIs
-    try:
-        cover_result = cover_service.fetch_cover(title, author)
-        if cover_result:
-            image_bytes, content_type = cover_result
-            logger.info(f"Found cover from online API for: {title}")
-            return Response(content=image_bytes, media_type=content_type)
-        else:
-            logger.warning(f"No cover found in online APIs for: {title} by {author or 'Unknown'}")
-    except Exception as e:
-        logger.error(f"Error fetching cover for {title}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error fetching cover: {str(e)}"
-        )
-    
-    # If no cover found from APIs
-    raise HTTPException(
-        status_code=404, 
-        detail=f"Cover image not found in online APIs for: {title}"
-    )

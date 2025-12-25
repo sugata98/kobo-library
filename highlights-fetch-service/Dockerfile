@@ -17,4 +17,4 @@ COPY . .
 RUN mkdir -p /tmp
 
 # Use single worker to reduce memory usage (important for 512MB servers)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT:-8000}", "--workers", "1"]
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1

@@ -72,7 +72,7 @@ If covers aren't synced automatically:
 
 ## Current Implementation
 
-The `/book/{book_id}/cover` endpoint tries covers in this order:
+The `/books/{book_id}/cover` endpoint tries covers in this order:
 
 1. **🆕 Free Online APIs** (automatic, no setup needed):
    - Open Library API - searches by title and author
