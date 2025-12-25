@@ -1,12 +1,12 @@
 services:
-  b2-highlights-fetch-service:
-    build: ./b2-highlights-fetch-service
+  highlights-fetch-service:
+    build: ./highlights-fetch-service
     ports:
       - "8000:8000"
     env_file:
-      - ./b2-highlights-fetch-service/.env
+      - ./highlights-fetch-service/.env
     volumes:
-      - ./b2-highlights-fetch-service:/app
+      - ./highlights-fetch-service:/app
 
   library-ui:
     build: ./library-ui
@@ -15,7 +15,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api
     depends_on:
-      - b2-highlights-fetch-service
+      - highlights-fetch-service
     volumes:
       - ./library-ui:/app
       - /app/node_modules

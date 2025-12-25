@@ -5,7 +5,7 @@ A monorepo for syncing and viewing Kobo e-reader highlights and markups from B2 
 ## Structure
 
 - `library-ui/`: Next.js application for viewing books and highlights.
-- `b2-highlights-fetch-service/`: FastAPI application for syncing with B2 and parsing `KoboReader.sqlite`.
+- `highlights-fetch-service/`: FastAPI application for syncing with B2 and parsing `KoboReader.sqlite`.
 
 ## Prerequisites
 
@@ -17,10 +17,10 @@ A monorepo for syncing and viewing Kobo e-reader highlights and markups from B2 
 ## Setup
 
 1. **Configure Backend Environment**:
-   Create `b2-highlights-fetch-service/.env` based on `b2-highlights-fetch-service/example.env`:
+   Create `highlights-fetch-service/.env` based on `highlights-fetch-service/example.env`:
    ```bash
-   cp b2-highlights-fetch-service/example.env b2-highlights-fetch-service/.env
-   # Edit b2-highlights-fetch-service/.env with your B2 credentials
+   cp highlights-fetch-service/example.env highlights-fetch-service/.env
+   # Edit highlights-fetch-service/.env with your B2 credentials
    ```
 
 ## Usage
@@ -43,7 +43,7 @@ If you cannot run Docker, run the services individually:
 **Backend:**
 
 ```bash
-cd b2-highlights-fetch-service
+cd highlights-fetch-service
 pip install -r requirements.txt
 python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -68,8 +68,8 @@ npm run dev
 
 2. **Configure the Service:**
 
-   - **Name**: `b2-highlights-fetch-service` (or your preferred name)
-   - **Root Directory**: `b2-highlights-fetch-service`
+   - **Name**: `highlights-fetch-service` (or your preferred name)
+   - **Root Directory**: `highlights-fetch-service`
    - **Environment**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`

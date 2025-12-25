@@ -1,4 +1,4 @@
-# B2 Highlights Fetch Service
+# Highlights Fetch Service
 
 This directory contains the FastAPI backend service for syncing with B2 Cloud and parsing KoboReader.sqlite.
 
@@ -6,7 +6,7 @@ This directory contains the FastAPI backend service for syncing with B2 Cloud an
 
 1. Create a new Web Service on Render
 2. Connect your GitHub repository
-3. Set Root Directory to: `b2-highlights-fetch-service`
+3. Set Root Directory to: `highlights-fetch-service`
 4. Use the following settings:
    - **Environment**: Python 3
    - **Build Command**: `pip install -r requirements.txt`
