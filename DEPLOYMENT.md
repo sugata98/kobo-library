@@ -60,7 +60,7 @@
    - **Root Directory**: `library-ui` (set this in the Vercel dashboard, not in vercel.json)
    - **Build Command**: `cd library-ui && npm install && npm run build` (or leave default)
    - **Output Directory**: `library-ui/.next` (or leave default)
-   
+
    Note: The `vercel.json` file already contains the build commands, so you can leave most settings as default.
 
 4. **Add Environment Variable:**
@@ -72,7 +72,7 @@
    NEXT_PUBLIC_API_URL = https://highlights-fetch-service.onrender.com/api
    ```
 
-   (Replace with your actual Render backend URL)
+   (This should match your Render backend service URL + `/api`)
 
 5. **Deploy:**
    - Click "Deploy"
