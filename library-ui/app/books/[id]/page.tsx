@@ -33,7 +33,7 @@ export default function BookDetails({
       .then(([h, m]) => {
         setHighlights(h);
         // Sort markups by ordering number if available, then by date
-        const sorted = m.sort((a, b) => {
+        const sorted = m.sort((a: any, b: any) => {
           if (a.OrderingNumber && b.OrderingNumber) {
             return a.OrderingNumber.localeCompare(b.OrderingNumber);
           }
