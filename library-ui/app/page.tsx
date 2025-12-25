@@ -3,6 +3,13 @@
 import { useState, useEffect } from "react";
 import BookList from "@/components/BookList";
 
+/**
+ * Root client component that renders the library home page with a debounced search for books.
+ *
+ * Maintains an internal search input and updates a debounced search value after 300ms of inactivity, which is passed to `BookList`.
+ *
+ * @returns The Home page React element containing the header, search input, and `BookList` driven by the debounced search query.
+ */
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");

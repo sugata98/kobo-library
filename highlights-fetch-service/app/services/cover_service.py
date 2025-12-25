@@ -12,8 +12,16 @@ class CoverService:
     @staticmethod
     def fetch_from_open_library(title: str, author: Optional[str] = None) -> Optional[bytes]:
         """
-        Fetch cover from Open Library API (free, no API key required)
-        Returns image bytes or None if not found
+        Search Open Library for the given title (and optional author) and return the book cover image bytes if found.
+        
+        Searches Open Library's search API for the title and author, then attempts to retrieve a cover image using the result's `cover_i` (cover ID) and, if that fails, the first available ISBN. Returns the raw image bytes when a valid image is fetched; returns `None` if no cover is found or an error occurs.
+        
+        Parameters:
+            title (str): Book title to search for. Leading/trailing whitespace is ignored.
+            author (Optional[str]): Optional author name to include in the search.
+        
+        Returns:
+            Optional[bytes]: Image bytes of the cover when found, `None` otherwise.
         """
         try:
             # Build search query - clean and encode
@@ -86,8 +94,12 @@ class CoverService:
     @staticmethod
     def fetch_from_google_books(title: str, author: Optional[str] = None) -> Optional[bytes]:
         """
-        Fetch cover from Google Books API (free, no API key required)
-        Returns image bytes or None if not found
+        Fetch a book cover image from Google Books using the provided title and optional author.
+        
+        Attempts to find the best-matching volume and retrieve an image by trying available image sizes in descending preference. Returns the raw image bytes when a valid image is obtained, or None if no cover could be retrieved.
+         
+        Returns:
+            image_bytes (Optional[bytes]): Raw image data if found, None otherwise.
         """
         try:
             # Build search query - clean and encode
@@ -146,14 +158,16 @@ class CoverService:
     @staticmethod
     def fetch_cover(title: str, author: Optional[str] = None) -> Optional[Tuple[bytes, str]]:
         """
-        Fetch cover from free APIs, trying multiple sources.
-        Returns tuple of (image_bytes, content_type) or None if not found.
+        Locate a book cover image by querying Open Library and Google Books.
         
-        Tries in order:
-        1. Open Library API (with full title)
-        2. Open Library API (with simplified title - remove special chars)
-        3. Google Books API (with full title)
-        4. Google Books API (with simplified title)
+        Searches in this order: Open Library with the provided title, Open Library with a simplified title (special characters removed), Google Books with the provided title, and Google Books with the simplified title. Logs progress and returns on the first successful image retrieval.
+        
+        Parameters:
+            title (str): The book title to search for. Leading/trailing whitespace is ignored.
+            author (Optional[str]): Optional author name to refine the search.
+        
+        Returns:
+            Optional[Tuple[bytes, str]]: A tuple (image_bytes, content_type) where `image_bytes` is the raw image data and `content_type` is the MIME type (set to "image/jpeg") if a cover is found; `None` if no cover could be retrieved.
         """
         # Clean title and author
         clean_title = title.strip() if title else ""
@@ -194,7 +208,17 @@ class CoverService:
     
     @staticmethod
     def _simplify_title(title: str) -> str:
-        """Simplify title by removing special characters, quotes, and extra whitespace"""
+        """
+        Simplify a book title by removing punctuation and normalizing whitespace.
+        
+        Removes characters that are not word characters, spaces, or hyphens, replaces them with spaces, collapses consecutive whitespace into single spaces, and trims leading/trailing whitespace.
+        
+        Parameters:
+            title (str): The original title to simplify.
+        
+        Returns:
+            str: The simplified title.
+        """
         import re
         # Remove common special characters but keep basic punctuation
         simplified = re.sub(r'[^\w\s-]', ' ', title)
@@ -203,4 +227,3 @@ class CoverService:
         return simplified.strip()
 
 cover_service = CoverService()
-
