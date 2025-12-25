@@ -20,6 +20,16 @@ const getJpgUrl = (markupId: string) =>
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
   }/markup/${markupId}/jpg`;
 
+/**
+ * Displays a book cover image when available and a persistent placeholder otherwise.
+ *
+ * Fetches a cover URL for the given title (and optional author or ISBN) and renders the image; if fetching or image loading fails, a stylized placeholder is shown.
+ *
+ * @param title - The book title used to request a cover image
+ * @param author - Optional author name to improve cover lookup
+ * @param isbn - Optional ISBN to improve cover lookup
+ * @returns A JSX element containing either the fetched cover image or a placeholder graphic
+ */
 function BookCoverImage({
   title,
   author,
@@ -81,6 +91,14 @@ function BookCoverImage({
   );
 }
 
+/**
+ * Render a detailed book page including cover, metadata, highlights, and markups.
+ *
+ * Displays a loading indicator while fetching book data and an error message if fetching fails.
+ *
+ * @param params - A promise that resolves to route parameters; the object must contain an encoded `id` for the book.
+ * @returns The React element for the book details page (cover, title/author/progress, highlights list, and markups with image overlays).
+ */
 export default function BookDetails({
   params,
 }: {

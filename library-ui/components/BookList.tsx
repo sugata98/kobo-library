@@ -4,6 +4,16 @@ import { useState, useEffect } from "react";
 import { getBooks, getBookCoverUrl } from "@/lib/api";
 import Link from "next/link";
 
+/**
+ * Renders a book cover image when available and a styled placeholder otherwise.
+ *
+ * Fetches a cover URL when `title`, `author`, or `isbn` change, displays the image if the fetch succeeds, hides the placeholder on image load, and shows the placeholder if the image fails to load.
+ *
+ * @param title - The book title used to locate a cover image.
+ * @param author - Optional author name to improve cover lookup.
+ * @param isbn - Optional ISBN to improve cover lookup.
+ * @returns A JSX element containing either the cover image or a placeholder UI.
+ */
 function BookCover({
   title,
   author,
@@ -78,6 +88,14 @@ function BookCover({
   );
 }
 
+/**
+ * Renders a searchable, paginated grid of book cards with cover images, titles, authors, and progress indicators.
+ *
+ * When `searchQuery` is non-empty the component performs a server-side search and shows client-side filtered results (pagination is disabled). When `searchQuery` is empty the component fetches paginated books and shows pagination controls.
+ *
+ * @param searchQuery - Optional search string; when provided triggers server-side search and client-side filtering of results.
+ * @returns A React element containing the book grid, loading/error states, and pagination controls (pagination hidden while searching).
+ */
 export default function BookList({
   searchQuery = "",
 }: {

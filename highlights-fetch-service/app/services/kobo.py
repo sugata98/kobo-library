@@ -12,6 +12,16 @@ class KoboService:
         return conn
 
     def _dict_factory(self, cursor, row):
+        """
+        Convert a SQLite result row into a dictionary keyed by column names.
+        
+        Parameters:
+            cursor (sqlite3.Cursor): Cursor whose description provides column names.
+            row (Sequence): Row tuple returned by the cursor.
+        
+        Returns:
+            dict: Mapping of column name to value. None values are preserved. Byte values are decoded to UTF-8 when possible; on decode failure they are returned as a hex string. The column 'ExtraAnnotationData' is treated the same as other byte columns (attempt UTF-8 decode, fallback to hex).
+        """
         d = {}
         for idx, col in enumerate(cursor.description):
             value = row[idx]
@@ -37,6 +47,26 @@ class KoboService:
         return d
 
     def get_books(self, limit: Optional[int] = None, offset: Optional[int] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Retrieve a deduplicated list of books from the local Kobo database.
+        
+        This returns one representative entry per Title + Attribution pair, preferring entries with higher percent-read and more recent creation dates when duplicates exist. Results are ordered to show books with reading progress first (higher percent read first) and then by title (case-insensitive). Supports optional case-insensitive substring search on Title or Attribution and optional pagination.
+        
+        Parameters:
+            limit (Optional[int]): Maximum number of books to return. If None, no limit is applied.
+            offset (Optional[int]): Number of rows to skip before returning results. Applied only when `limit` is provided.
+            search (Optional[str]): Case-insensitive substring to filter Title or Attribution.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of book dictionaries. Each dictionary contains at least the following keys:
+                - ContentID
+                - Title
+                - Author (Attribution)
+                - DateCreated
+                - ___PercentRead
+                - ImageUrl
+                - ISBN
+        """
         conn = self.get_connection()
         conn.row_factory = self._dict_factory
         cursor = conn.cursor()
@@ -100,7 +130,12 @@ class KoboService:
         return books
     
     def get_total_books(self) -> int:
-        """Get the total count of unique books"""
+        """
+        Return the number of unique books stored in the database, deduplicated by Title and Attribution and counted using the representative entry chosen by highest percent-read then newest DateCreated.
+        
+        Returns:
+            int: Total count of unique books (ContentType '6') where BookID is empty or NULL.
+        """
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -126,7 +161,15 @@ class KoboService:
         return result[0] if result else 0
     
     def get_book_by_id(self, book_id: str) -> Optional[Dict[str, Any]]:
-        """Get a single book by ContentID"""
+        """
+        Retrieve a single book record identified by its ContentID.
+        
+        Parameters:
+            book_id (str): The ContentID of the book to retrieve.
+        
+        Returns:
+            book (Optional[Dict[str, Any]]): A dictionary with keys ContentID, Title, Author (Attribution), DateCreated, ___PercentRead, ImageUrl, and ISBN for the matching book, or `None` if no book is found.
+        """
         conn = self.get_connection()
         conn.row_factory = self._dict_factory
         cursor = conn.cursor()
@@ -152,6 +195,17 @@ class KoboService:
         return book
 
     def get_highlights(self, book_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieve highlights for a Kobo book by its VolumeID.
+        
+        Parameters:
+            book_id (str): Kobo VolumeID used to filter highlights.
+        
+        Returns:
+            List[dict]: A list of highlight records. Each dictionary contains the keys
+                'BookmarkID', 'VolumeID', 'Text', 'Annotation', 'DateCreated', and
+                'ChapterProgress'.
+        """
         conn = self.get_connection()
         conn.row_factory = self._dict_factory
         cursor = conn.cursor()

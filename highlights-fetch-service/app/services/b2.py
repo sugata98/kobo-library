@@ -37,6 +37,17 @@ class B2Service:
         return self.bucket.ls(folder_to_list=prefix)
 
     def get_file_content(self, file_name: str) -> bytes:
+        """
+        Return the contents of a file from the configured B2 bucket as bytes.
+        
+        Downloads the specified file into memory and returns its raw byte content. Ensures the service is connected before attempting the download.
+        
+        Parameters:
+            file_name (str): Path or name of the file in the bucket.
+        
+        Returns:
+            bytes: Full contents of the file.
+        """
         self._ensure_connected()
         # Download to memory
         # b2sdk download_file_by_name returns a DownloadVersion object
@@ -49,8 +60,13 @@ class B2Service:
     
     def get_file_stream(self, file_name: str):
         """
-        Get file as a streaming response generator to reduce memory usage.
-        Useful for large files like markup images.
+        Provide a generator that yields the file's contents from the bucket in fixed-size binary chunks.
+        
+        Parameters:
+            file_name (str): The name (path) of the file in the bucket to stream.
+        
+        Returns:
+            generator: Yields successive bytes objects containing up to 8192 bytes of file data.
         """
         self._ensure_connected()
         download_dest = self.bucket.download_file_by_name(file_name)

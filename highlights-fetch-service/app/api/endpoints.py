@@ -16,6 +16,17 @@ router = APIRouter()
 
 @router.post("/sync")
 def sync_data():
+    """
+    Syncs KoboReader.sqlite from B2 storage to the configured local database path.
+    
+    Attempts a direct download of "kobo/KoboReader.sqlite" to settings.LOCAL_DB_PATH; if that fails it lists the bucket and downloads the first file whose name ends with "KoboReader.sqlite". Creates the local directory if needed.
+    
+    Returns:
+        dict: {"message": "Database synced successfully"} on success.
+    
+    Raises:
+        HTTPException: with status code 500 if the sync or download process fails.
+    """
     try:
         local_path = settings.LOCAL_DB_PATH
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -47,7 +58,28 @@ def get_books(page: int = Query(1, ge=1, description="Page number (1-indexed)"),
               page_size: int = Query(10, ge=1, le=100, description="Number of books per page"),
               search: str = Query(None, description="Search query for title or author")):
     # Auto-sync if database doesn't exist
-    if not os.path.exists(settings.LOCAL_DB_PATH):
+    """
+              Retrieve a paginated list of books with optional title/author search.
+              
+              If the local KoboReader.sqlite database is missing, attempts an automatic sync from B2 before querying.
+              When `search` is provided, `total` is computed across all matching records (not just the returned page).
+              Pagination is 1-indexed.
+              
+              Returns:
+                  dict: {
+                      "books": list of book records,
+                      "pagination": {
+                          "page": int,
+                          "page_size": int,
+                          "total": int,
+                          "total_pages": int
+                      }
+                  }
+              
+              Raises:
+                  HTTPException: If the database cannot be found or auto-sync/querying fails.
+              """
+              if not os.path.exists(settings.LOCAL_DB_PATH):
         logger.info("Database not found, attempting auto-sync...")
         try:
             local_path = settings.LOCAL_DB_PATH
@@ -105,6 +137,21 @@ def get_books(page: int = Query(1, ge=1, description="Page number (1-indexed)"),
 
 @router.get("/books/{book_id:path}/highlights")
 def get_book_highlights(book_id: str):
+    """
+    Retrieve highlights for a book identified by `book_id`.
+    
+    Attempts to fetch highlights using the provided `book_id`. If no highlights are found, retries with the URL-decoded `book_id` when it differs from the original.
+    
+    Parameters:
+        book_id (str): Book identifier from the request path; may be URL-encoded.
+    
+    Returns:
+        list: Highlights for the specified book.
+    
+    Raises:
+        HTTPException: 404 if the local database is missing.
+        HTTPException: 500 for unexpected errors while fetching highlights.
+    """
     if not os.path.exists(settings.LOCAL_DB_PATH):
         raise HTTPException(status_code=404, detail="Database not found. Please sync first.")
     
@@ -122,6 +169,19 @@ def get_book_highlights(book_id: str):
 
 @router.get("/books/{book_id:path}/markups")
 def get_book_markups(book_id: str):
+    """
+    Retrieve markups associated with a book identifier.
+    
+    Parameters:
+        book_id (str): Book identifier (ContentID). Supports URL-encoded values; the function will retry with a URL-decoded ID if no markups are found for the original.
+    
+    Returns:
+        list: A list of markup records for the specified book; an empty list if no markups are found.
+    
+    Raises:
+        HTTPException: 404 if the local database is not present.
+        HTTPException: 500 if an unexpected error occurs while fetching markups.
+    """
     if not os.path.exists(settings.LOCAL_DB_PATH):
         raise HTTPException(status_code=404, detail="Database not found. Please sync first.")
     
@@ -139,6 +199,19 @@ def get_book_markups(book_id: str):
 
 @router.get("/books/{book_id:path}")
 def get_book_details(book_id: str):
+    """
+    Retrieve detailed metadata for a book by its ID, trying a URL-decoded ID first and falling back to the original ID.
+    
+    Parameters:
+        book_id (str): The book identifier from the request path; may be URL-encoded.
+    
+    Returns:
+        dict: The book record retrieved from the local Kobo database (metadata fields as returned by the service).
+    
+    Raises:
+        HTTPException: 404 if the local database is missing or the book is not found.
+        HTTPException: 500 if an unexpected error occurs while fetching book details.
+    """
     if not os.path.exists(settings.LOCAL_DB_PATH):
         raise HTTPException(status_code=404, detail="Database not found. Please sync first.")
     
@@ -162,6 +235,18 @@ def get_book_details(book_id: str):
 @router.get("/markup/{markup_id}/svg")
 def get_markup_svg(markup_id: str):
     # Based on logs, the path is 'kobo/markups/{markup_id}.svg'
+    """
+    Retrieve an SVG image for a markup by searching known B2 storage paths.
+    
+    Parameters:
+        markup_id (str): Identifier of the markup (filename without path or extension).
+    
+    Returns:
+        Response: HTTP response containing the SVG bytes with content type "image/svg+xml".
+    
+    Raises:
+        HTTPException: with status 404 if the SVG file cannot be found in B2.
+    """
     possible_paths = [
         f"kobo/markups/{markup_id}.svg",
         f"markups/{markup_id}.svg",
@@ -184,6 +269,18 @@ def get_markup_svg(markup_id: str):
 def get_markup_jpg(markup_id: str):
     # The JPG file should have the same ID as the SVG
     # Based on leldr's tool, they match by BookmarkID
+    """
+    Return a streaming JPEG image for a markup by attempting several common storage paths.
+    
+    Parameters:
+        markup_id (str): Identifier of the markup used to build possible file paths (e.g., bookmark or markup ID).
+    
+    Returns:
+        StreamingResponse: A streaming response that yields JPEG image bytes with content type `image/jpeg`.
+    
+    Raises:
+        HTTPException: 404 if no JPEG file for the given markup_id is found in storage.
+    """
     possible_paths = [
         f"kobo/markups/{markup_id}.jpg",
         f"markups/{markup_id}.jpg",
@@ -210,12 +307,17 @@ def get_book_cover(
     author: str = Query(None, description="Book author")
 ):
     """
-    Get book cover image from free online APIs (Open Library, Google Books).
+    Retrieve a book cover image using the provided title and optional author, or by falling back to the local Kobo database.
     
-    Fetches covers directly from online APIs based on book title and author.
-    Pass title (and optionally author) as query parameters.
+    If `title` is omitted, the function attempts to read Title and Attribution from the local KoboReader.sqlite using `book_id`. Raises HTTPException 400 if a title cannot be determined. On success returns the image bytes with the appropriate content type; if no image is found in the online APIs, raises HTTPException 404. On unexpected errors, raises HTTPException 500.
     
-    Example: /api/book/{book_id}/cover?title=Clean Code&author=Robert Martin
+    Parameters:
+        book_id (str): ContentID used to look up title/author in the local database when `title` is not provided.
+        title (str, optional): Book title provided as a query parameter; URL-decoded before use.
+        author (str, optional): Book author provided as a query parameter; URL-decoded before use.
+    
+    Returns:
+        Response: HTTP response containing the image bytes and the matching media type (e.g., image/jpeg or image/png).
     """
     # Decode URL-encoded parameters
     if title:
