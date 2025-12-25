@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+b2sdk
+pydantic
+pydantic-settings
+python-dotenv
+sqlalchemy
+

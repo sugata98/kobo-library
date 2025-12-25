@@ -1,0 +1,16 @@
+# Render Blueprint for Backend
+services:
+  - type: web
+    name: kobo-library-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: B2_APPLICATION_KEY_ID
+        sync: false
+      - key: B2_APPLICATION_KEY
+        sync: false
+      - key: B2_BUCKET_NAME
+        sync: false
+      - key: LOCAL_DB_PATH
+        value: /tmp/KoboReader.sqlite
