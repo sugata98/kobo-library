@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { getBookHighlights, getBookMarkups } from "@/lib/api";
+import {
+  getBookHighlights,
+  getBookMarkups,
+  getBookDetails,
+  getBookCoverUrl,
+} from "@/lib/api";
 import Link from "next/link";
 
 // Use the backend proxy endpoints
@@ -15,6 +20,67 @@ const getJpgUrl = (markupId: string) =>
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
   }/markup/${markupId}/jpg`;
 
+function BookCoverImage({
+  title,
+  author,
+  isbn,
+}: {
+  title: string;
+  author?: string;
+  isbn?: string;
+}) {
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (title) {
+      getBookCoverUrl(title, author, isbn)
+        .then((url) => {
+          setCoverUrl(url);
+        })
+        .catch(() => {
+          // Silently fail, placeholder will show
+        });
+    }
+  }, [title, author, isbn]);
+
+  return (
+    <div className="relative w-32 h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden rounded-lg shadow-md">
+      {coverUrl && (
+        <img
+          src={coverUrl}
+          alt={`${title} cover`}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.style.display = "none";
+            const placeholder = target.parentElement?.querySelector(
+              ".cover-placeholder"
+            ) as HTMLElement;
+            if (placeholder) {
+              placeholder.style.display = "flex";
+            }
+          }}
+        />
+      )}
+      <div className="cover-placeholder absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-500">
+        <svg
+          className="w-12 h-12"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+          />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export default function BookDetails({
   params,
 }: {
@@ -23,14 +89,20 @@ export default function BookDetails({
   const { id } = use(params);
   const [highlights, setHighlights] = useState<any[]>([]);
   const [markups, setMarkups] = useState<any[]>([]);
+  const [bookInfo, setBookInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const bookId = decodeURIComponent(id);
 
-    Promise.all([getBookHighlights(bookId), getBookMarkups(bookId)])
-      .then(([h, m]) => {
+    Promise.all([
+      getBookDetails(bookId),
+      getBookHighlights(bookId),
+      getBookMarkups(bookId),
+    ])
+      .then(([book, h, m]) => {
+        setBookInfo(book);
         setHighlights(h);
         // Sort markups by ordering number if available, then by date
         const sorted = m.sort((a: any, b: any) => {
@@ -60,9 +132,30 @@ export default function BookDetails({
         &larr; Back to Library
       </Link>
 
-      <h1 className="text-2xl font-bold mb-6 break-all">
-        Book ID: {decodeURIComponent(id)}
-      </h1>
+      <div className="flex items-start gap-6 mb-6">
+        {bookInfo && (
+          <BookCoverImage
+            title={bookInfo.Title}
+            author={bookInfo.Author}
+            isbn={bookInfo.ISBN}
+          />
+        )}
+        <div>
+          <h1 className="text-2xl font-bold mb-2">
+            {bookInfo?.Title || `Book ID: ${decodeURIComponent(id)}`}
+          </h1>
+          {bookInfo?.Author && (
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
+              by {bookInfo.Author}
+            </p>
+          )}
+          {bookInfo && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Progress: {Math.round(bookInfo.___PercentRead || 0)}%
+            </p>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <section>
@@ -79,7 +172,7 @@ export default function BookDetails({
                   className="bg-white dark:bg-gray-800 p-4 rounded shadow"
                 >
                   <blockquote className="border-l-4 border-yellow-400 pl-4 italic mb-2">
-                    "{h.Text}"
+                    &ldquo;{h.Text}&rdquo;
                   </blockquote>
                   <div className="text-xs text-gray-400 mt-2 text-right">
                     {new Date(h.DateCreated).toLocaleDateString()}

@@ -46,5 +46,24 @@ class B2Service:
         download_dest.save(buffer)
         buffer.seek(0)
         return buffer.read()
+    
+    def get_file_stream(self, file_name: str):
+        """
+        Get file as a streaming response generator to reduce memory usage.
+        Useful for large files like markup images.
+        """
+        self._ensure_connected()
+        download_dest = self.bucket.download_file_by_name(file_name)
+        # Return a generator that yields chunks
+        chunk_size = 8192  # 8KB chunks
+        buffer = BytesIO()
+        download_dest.save(buffer)
+        buffer.seek(0)
+        
+        while True:
+            chunk = buffer.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
 
 b2_service = B2Service()
