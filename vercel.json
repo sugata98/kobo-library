@@ -3,7 +3,6 @@
   "outputDirectory": "library-ui/.next",
   "devCommand": "cd library-ui && npm run dev",
   "installCommand": "cd library-ui && npm install",
-  "framework": "nextjs",
-  "rootDirectory": "library-ui"
+  "framework": "nextjs"
 }
 
