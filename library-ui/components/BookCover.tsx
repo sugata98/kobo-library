@@ -29,19 +29,14 @@ export default function BookCover({
   // Fetch cover URL
   useEffect(() => {
     if (!title) {
-      setCoverUrl(null);
-      setImageLoaded(false);
-      setImageError(false);
-      return;
+      // Use setTimeout to avoid synchronous setState in effect
+      const timeoutId = setTimeout(() => {
+        setCoverUrl(null);
+      }, 0);
+      return () => clearTimeout(timeoutId);
     }
 
     let cancelled = false;
-
-    // Reset image state when fetching new cover
-    // Note: Resetting state when dependencies change is a valid pattern
-    // to ensure UI reflects the new book being loaded
-    setImageLoaded(false);
-    setImageError(false);
 
     getBookCoverUrl(title, author, isbn)
       .then((url) => {
@@ -72,12 +67,12 @@ export default function BookCover({
   };
 
   const showPlaceholder = !coverUrl || imageError || !imageLoaded;
-
+  /* eslint-disable @next/next/no-img-element */
   return (
     <div className={className}>
       {coverUrl && (
         <img
-          key={coverUrl}
+          key={`${title}-${author}-${isbn}-${coverUrl}`}
           src={coverUrl}
           alt={`${title} cover`}
           className={imageClassName}

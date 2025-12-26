@@ -21,7 +21,7 @@ export default function Home() {
       <header className="mb-8">
         <h1 className="text-3xl font-bold">Kobo Library</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Database syncs automatically on page load
+          Highlights and Markups from your Kobo e-reader
         </p>
       </header>
 

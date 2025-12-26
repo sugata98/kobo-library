@@ -54,8 +54,10 @@ class CoverService:
             # Try to get ISBN-13 or ISBN-10
             if "isbn" in book:
                 isbns = book["isbn"]
-                if isbns:
-                    isbn = isbns[0] if isinstance(isbns, list) else isbn
+                if isinstance(isbns, list) and len(isbns) > 0:
+                    isbn = isbns[0]
+                elif isinstance(isbns, str) and isbns:
+                    isbn = isbns
             
             # Try cover ID first (most reliable)
             if cover_id:

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, use } from "react";
@@ -17,13 +18,14 @@ const getJpgUrl = (markupId: string) =>
   }/markup/${markupId}/jpg`;
 
 // Component to handle markup image loading with state management and progressive loading
+// Using <img> instead of Next.js Image for dynamic API endpoints with overlay behavior
+/* eslint-disable @next/next/no-img-element */
 function MarkupImage({ markupId }: { markupId: string }) {
   const [jpgLoaded, setJpgLoaded] = useState(false);
   const [svgLoaded, setSvgLoaded] = useState(false);
   const [jpgError, setJpgError] = useState(false);
   const [svgError, setSvgError] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
-  const [imageStartedLoading, setImageStartedLoading] = useState(false);
 
   const handleJpgLoad = () => {
     setJpgLoaded(true);
@@ -42,9 +44,9 @@ function MarkupImage({ markupId }: { markupId: string }) {
     setSvgError(true);
   };
 
-  // Show loader only before image starts loading
-  // Once image starts, browser will progressively render it
-  const showLoader = !imageStartedLoading && !jpgLoaded && !jpgError;
+  // Show loader until image loads or errors
+  // Once image loads, browser will progressively render it
+  const showLoader = !jpgLoaded && !jpgError;
 
   return (
     <div className="border border-gray-200 p-2 rounded bg-white dark:bg-gray-900 relative w-full">
@@ -65,13 +67,6 @@ function MarkupImage({ markupId }: { markupId: string }) {
             className="w-full h-auto block relative z-10"
             onLoad={handleJpgLoad}
             onError={handleJpgError}
-            onLoadStart={() => {
-              setImageStartedLoading(true);
-            }}
-            onProgress={() => {
-              // Hide loader as soon as we start receiving data
-              setImageStartedLoading(true);
-            }}
             loading="eager"
             decoding="async"
           />
@@ -126,6 +121,7 @@ export default function BookDetails({
         setBookInfo(book);
         setHighlights(h);
         // Sort markups by ordering number if available, then by date
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const sorted = m.sort((a: any, b: any) => {
           if (a.OrderingNumber && b.OrderingNumber) {
             return a.OrderingNumber.localeCompare(b.OrderingNumber);
@@ -173,9 +169,16 @@ export default function BookDetails({
             </p>
           )}
           {bookInfo && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Progress: {Math.round(bookInfo.___PercentRead || 0)}%
-            </p>
+            <div className="space-y-1">
+              {bookInfo.ISBN && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  ISBN: {bookInfo.ISBN}
+                </p>
+              )}
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Progress: {Math.round(bookInfo.___PercentRead || 0)}%
+              </p>
+            </div>
           )}
         </div>
       </div>
