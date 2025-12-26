@@ -46,5 +46,53 @@ class B2Service:
         download_dest.save(buffer)
         buffer.seek(0)
         return buffer.read()
+    
+    def get_file_stream(self, file_name: str):
+        """
+        Get file as a true streaming response generator.
+        Uses range requests to download and yield chunks incrementally
+        without buffering the entire file in memory.
+        """
+        self._ensure_connected()
+        
+        # First, get file info to determine size
+        try:
+            file_info = self.bucket.get_file_info_by_name(file_name)
+            file_size = file_info.size
+        except Exception as e:
+            logger.error(f"Error getting file info for {file_name}: {e}")
+            raise
+        
+        # Download in chunks using range requests
+        chunk_size = 64 * 1024  # 64KB chunks - good balance between performance and memory
+        offset = 0
+        
+        while offset < file_size:
+            # Calculate range for this chunk
+            end = min(offset + chunk_size - 1, file_size - 1)
+            range_header = (offset, end)
+            
+            try:
+                # Download this chunk using range request
+                download_dest = self.bucket.download_file_by_name(
+                    file_name,
+                    range_=range_header
+                )
+                
+                # Read chunk into small buffer and yield immediately
+                chunk_buffer = BytesIO()
+                download_dest.save(chunk_buffer)
+                chunk_buffer.seek(0)
+                chunk_data = chunk_buffer.read()
+                
+                # Yield the chunk immediately (not buffering entire file)
+                yield chunk_data
+                
+                # Move to next chunk
+                offset = end + 1
+                
+            except Exception as e:
+                logger.error(f"Error downloading chunk at offset {offset}: {e}")
+                raise
 
 b2_service = B2Service()

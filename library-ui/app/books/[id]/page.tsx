@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { getBookHighlights, getBookMarkups } from "@/lib/api";
+import { getBookHighlights, getBookMarkups, getBookDetails } from "@/lib/api";
 import Link from "next/link";
+import BookCover from "@/components/BookCover";
 
 // Use the backend proxy endpoints
 const getSvgUrl = (markupId: string) =>
@@ -15,6 +17,86 @@ const getJpgUrl = (markupId: string) =>
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
   }/markup/${markupId}/jpg`;
 
+// Component to handle markup image loading with state management and progressive loading
+// Using <img> instead of Next.js Image for dynamic API endpoints with overlay behavior
+/* eslint-disable @next/next/no-img-element */
+function MarkupImage({ markupId }: { markupId: string }) {
+  const [jpgLoaded, setJpgLoaded] = useState(false);
+  const [svgLoaded, setSvgLoaded] = useState(false);
+  const [jpgError, setJpgError] = useState(false);
+  const [svgError, setSvgError] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
+
+  const handleJpgLoad = () => {
+    setJpgLoaded(true);
+  };
+
+  const handleJpgError = () => {
+    setJpgError(true);
+    setShowFallback(true);
+  };
+
+  const handleSvgLoad = () => {
+    setSvgLoaded(true);
+  };
+
+  const handleSvgError = () => {
+    setSvgError(true);
+  };
+
+  // Show loader until image loads or errors
+  // Once image loads, browser will progressively render it
+  const showLoader = !jpgLoaded && !jpgError;
+
+  return (
+    <div className="border border-gray-200 p-2 rounded bg-white dark:bg-gray-900 relative w-full">
+      {/* Container for overlay */}
+      <div className="relative w-full min-h-[200px]">
+        {/* Subtle skeleton loader - only shown before image starts loading */}
+        {showLoader && (
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded flex items-center justify-center z-0">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400"></div>
+          </div>
+        )}
+
+        {/* JPG Background - progressively loads as chunks arrive from streaming */}
+        {!showFallback && (
+          <img
+            src={getJpgUrl(markupId)}
+            alt="Page"
+            className="w-full h-auto block relative z-10"
+            onLoad={handleJpgLoad}
+            onError={handleJpgError}
+            loading="eager"
+            decoding="async"
+          />
+        )}
+
+        {/* SVG Overlay (positioned absolutely on top) */}
+        {!svgError && jpgLoaded && (
+          <img
+            src={getSvgUrl(markupId)}
+            alt="Markup"
+            className="absolute top-0 left-0 w-full h-full pointer-events-none transition-opacity duration-300"
+            style={{ mixBlendMode: "normal", opacity: svgLoaded ? 1 : 0 }}
+            onLoad={handleSvgLoad}
+            onError={handleSvgError}
+          />
+        )}
+
+        {/* Fallback message */}
+        {showFallback && (
+          <div className="text-xs text-gray-400 text-center p-4">
+            Images not found in B2.
+            <br />
+            (ID: {markupId})
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function BookDetails({
   params,
 }: {
@@ -23,16 +105,23 @@ export default function BookDetails({
   const { id } = use(params);
   const [highlights, setHighlights] = useState<any[]>([]);
   const [markups, setMarkups] = useState<any[]>([]);
+  const [bookInfo, setBookInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const bookId = decodeURIComponent(id);
 
-    Promise.all([getBookHighlights(bookId), getBookMarkups(bookId)])
-      .then(([h, m]) => {
+    Promise.all([
+      getBookDetails(bookId),
+      getBookHighlights(bookId),
+      getBookMarkups(bookId),
+    ])
+      .then(([book, h, m]) => {
+        setBookInfo(book);
         setHighlights(h);
         // Sort markups by ordering number if available, then by date
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const sorted = m.sort((a: any, b: any) => {
           if (a.OrderingNumber && b.OrderingNumber) {
             return a.OrderingNumber.localeCompare(b.OrderingNumber);
@@ -60,9 +149,39 @@ export default function BookDetails({
         &larr; Back to Library
       </Link>
 
-      <h1 className="text-2xl font-bold mb-6 break-all">
-        Book ID: {decodeURIComponent(id)}
-      </h1>
+      <div className="flex items-start gap-6 mb-6">
+        {bookInfo && (
+          <BookCover
+            title={bookInfo.Title}
+            author={bookInfo.Author}
+            isbn={bookInfo.ISBN}
+            className="relative w-32 h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden rounded-lg shadow-md"
+            iconSize="w-12 h-12"
+          />
+        )}
+        <div>
+          <h1 className="text-2xl font-bold mb-2">
+            {bookInfo?.Title || `Book ID: ${decodeURIComponent(id)}`}
+          </h1>
+          {bookInfo?.Author && (
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
+              by {bookInfo.Author}
+            </p>
+          )}
+          {bookInfo && (
+            <div className="space-y-1">
+              {bookInfo.ISBN && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  ISBN: {bookInfo.ISBN}
+                </p>
+              )}
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Progress: {Math.round(bookInfo.___PercentRead || 0)}%
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <section>
@@ -79,7 +198,7 @@ export default function BookDetails({
                   className="bg-white dark:bg-gray-800 p-4 rounded shadow"
                 >
                   <blockquote className="border-l-4 border-yellow-400 pl-4 italic mb-2">
-                    "{h.Text}"
+                    &ldquo;{h.Text}&rdquo;
                   </blockquote>
                   <div className="text-xs text-gray-400 mt-2 text-right">
                     {new Date(h.DateCreated).toLocaleDateString()}
@@ -126,45 +245,7 @@ export default function BookDetails({
                   )}
 
                   {/* Composite: JPG background with SVG overlay */}
-                  <div className="border border-gray-200 p-2 rounded bg-white dark:bg-gray-900 relative inline-block">
-                    {/* Container for overlay */}
-                    <div className="relative">
-                      {/* JPG Background */}
-                      <img
-                        src={getJpgUrl(m.BookmarkID)}
-                        alt="Page"
-                        className="max-w-full h-auto block"
-                        onError={(e) => {
-                          // If JPG fails, show fallback
-                          const container = (e.target as HTMLImageElement)
-                            .parentElement;
-                          if (container) {
-                            const fallback = container.querySelector(
-                              ".fallback-message"
-                            ) as HTMLElement;
-                            if (fallback) fallback.classList.remove("hidden");
-                          }
-                        }}
-                      />
-                      {/* SVG Overlay (positioned absolutely on top) */}
-                      <img
-                        src={getSvgUrl(m.BookmarkID)}
-                        alt="Markup"
-                        className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                        style={{ mixBlendMode: "normal", opacity: 1 }}
-                        onError={(e) => {
-                          // If SVG fails, just hide it
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                    </div>
-                    {/* Fallback message */}
-                    <div className="hidden fallback-message text-xs text-gray-400 text-center p-4">
-                      Images not found in B2.
-                      <br />
-                      (ID: {m.BookmarkID})
-                    </div>
-                  </div>
+                  <MarkupImage markupId={m.BookmarkID} />
                 </div>
               ))
             )}

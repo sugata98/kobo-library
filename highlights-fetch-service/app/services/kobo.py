@@ -36,20 +36,23 @@ class KoboService:
                 d[col_name] = value
         return d
 
-    def get_books(self) -> List[Dict[str, Any]]:
+    def get_books(self, limit: Optional[int] = None, offset: Optional[int] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
         conn = self.get_connection()
         conn.row_factory = self._dict_factory
         cursor = conn.cursor()
         
         # Deduplicate books by Title + Author
         # For duplicate books, pick the one with the highest progress or most recent date
+        # Sort: Books with progress first (descending), then alphabetically
         query = """
             SELECT 
                 c1.ContentID,
                 c1.Title, 
                 c1.Attribution as Author, 
                 MAX(c1.DateCreated) as DateCreated, 
-                MAX(c1.___PercentRead) as ___PercentRead
+                MAX(c1.___PercentRead) as ___PercentRead,
+                c1.ImageUrl,
+                c1.ISBN
             FROM content c1
             WHERE c1.ContentType = '6' 
             AND (c1.BookID IS NULL OR c1.BookID = '')
@@ -63,13 +66,110 @@ class KoboService:
                 ORDER BY c2.___PercentRead DESC, c2.DateCreated DESC
                 LIMIT 1
             )
-            GROUP BY c1.Title, c1.Attribution
-            ORDER BY c1.Title
         """
-        cursor.execute(query)
+        
+        # Add search filter if provided (before GROUP BY)
+        search_params = []
+        if search:
+            search_term = f"%{search.lower()}%"
+            query += """
+            AND (LOWER(c1.Title) LIKE ? OR LOWER(c1.Attribution) LIKE ?)
+            """
+            search_params = [search_term, search_term]
+        
+        query += """
+            GROUP BY c1.Title, c1.Attribution
+            ORDER BY 
+                CASE WHEN MAX(c1.___PercentRead) > 0 THEN 0 ELSE 1 END,
+                MAX(c1.___PercentRead) DESC,
+                LOWER(c1.Title) ASC
+        """
+        
+        # Build parameters list: search params first, then limit/offset
+        params = list(search_params) if search_params else []
+        
+        # Add LIMIT and OFFSET as bound parameters
+        if limit is not None and offset is not None:
+            query += " LIMIT ? OFFSET ?"
+            params.extend([int(limit), int(offset)])
+        elif limit is not None:
+            query += " LIMIT ?"
+            params.append(int(limit))
+        
+        # Execute with all parameters
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
         books = cursor.fetchall()
         conn.close()
+        
         return books
+    
+    def get_total_books(self, search: Optional[str] = None) -> int:
+        """Get the total count of unique books, optionally filtered by search"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT COUNT(DISTINCT c1.Title || COALESCE(c1.Attribution, '')) as total
+            FROM content c1
+            WHERE c1.ContentType = '6' 
+            AND (c1.BookID IS NULL OR c1.BookID = '')
+            AND c1.ContentID = (
+                SELECT c2.ContentID
+                FROM content c2
+                WHERE c2.ContentType = '6'
+                AND (c2.BookID IS NULL OR c2.BookID = '')
+                AND c2.Title = c1.Title
+                AND (c2.Attribution = c1.Attribution OR (c2.Attribution IS NULL AND c1.Attribution IS NULL))
+                ORDER BY c2.___PercentRead DESC, c2.DateCreated DESC
+                LIMIT 1
+            )
+        """
+        
+        # Add search filter if provided
+        search_params = []
+        if search:
+            search_term = f"%{search.lower()}%"
+            query += """
+            AND (LOWER(c1.Title) LIKE ? OR LOWER(c1.Attribution) LIKE ?)
+            """
+            search_params = [search_term, search_term]
+        
+        if search_params:
+            cursor.execute(query, search_params)
+        else:
+            cursor.execute(query)
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else 0
+    
+    def get_book_by_id(self, book_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single book by ContentID"""
+        conn = self.get_connection()
+        conn.row_factory = self._dict_factory
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT 
+                ContentID,
+                Title, 
+                Attribution as Author, 
+                DateCreated, 
+                ___PercentRead,
+                ImageUrl,
+                ISBN
+            FROM content
+            WHERE ContentType = '6' 
+            AND (BookID IS NULL OR BookID = '')
+            AND ContentID = ?
+            LIMIT 1
+        """
+        cursor.execute(query, (book_id,))
+        book = cursor.fetchone()
+        conn.close()
+        return book
 
     def get_highlights(self, book_id: str) -> List[Dict[str, Any]]:
         conn = self.get_connection()

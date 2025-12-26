@@ -60,7 +60,7 @@
    - **Root Directory**: `library-ui` ⚠️ **IMPORTANT: You MUST set this in the Vercel dashboard**
    - **Build Command**: Leave as default (or `npm install && npm run build`)
    - **Output Directory**: Leave as default (or `.next`)
-   
+
    **Critical**: If you don't set Root Directory to `library-ui`, Vercel won't find Next.js and the build will fail.
 
 4. **Add Environment Variable:**
