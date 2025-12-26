@@ -49,158 +49,42 @@ export async function getBookDetails(bookId: string) {
 }
 
 /**
- * Fetch book cover with caching strategy:
- * 1. Check LocalStorage cache first
- * 2. If ISBN exists, construct Open Library URL directly (no API call)
- * 3. If no ISBN, search Google Books API by title
- * 4. Cache results in LocalStorage
+ * Get book cover URL from backend API.
+ * 
+ * Backend handles:
+ * 1. B2 Cache - instant serving from cache
+ * 2. ImageUrl from Kobo database (for articles/embedded covers)
+ * 3. bookcover-api (Goodreads) - highest quality
+ * 4. Open Library API - fallback
+ * 5. Google Books API - final fallback
+ * 
+ * Browser HTTP cache handles caching via Cache-Control headers (30 days).
+ * No localStorage needed - simpler and more reliable!
  */
-// In-flight request cache to prevent duplicate simultaneous calls
-const inFlightRequests = new Map<string, Promise<string | null>>();
-
-export async function getBookCoverUrl(
+export function getBookCoverUrl(
   title: string,
   author?: string,
-  isbn?: string
-): Promise<string | null> {
+  isbn?: string,
+  imageUrl?: string
+): string | null {
   if (!title) return null;
 
-  // Create cache key from title and author
-  const cacheKey = `book_cover_${title}_${author || ""}`;
-
-  // Check LocalStorage cache first
-  try {
-    const cached = localStorage.getItem(cacheKey);
-    // Check for cached URL (starts with http) or cached failure (empty string means failed)
-    if (cached !== null) {
-      if (cached === "") {
-        // Cached failure - don't retry
-        return null;
-      }
-      if (cached.startsWith("http")) {
-        return cached;
-      }
-    }
-  } catch (e) {
-    // LocalStorage might not be available (SSR, private browsing, etc.)
-    console.debug("LocalStorage not available:", e);
-  }
-
-  // Check if there's already an in-flight request for this book
-  const requestKey = `${title}_${author || ""}_${isbn || ""}`;
-  if (inFlightRequests.has(requestKey)) {
-    return inFlightRequests.get(requestKey)!;
-  }
-
-  // Create the request promise
-  const requestPromise = (async () => {
-    let coverUrl: string | null = null;
-
-    // Strategy 1: If ISBN exists, construct Open Library URL directly (no API call)
-    if (isbn) {
-      // Clean ISBN (remove dashes, spaces)
-      const cleanIsbn = isbn.replace(/[-\s]/g, "");
-      if (cleanIsbn.length === 10 || cleanIsbn.length === 13) {
-        coverUrl = `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-L.jpg`;
-        // Cache the result
-        try {
-          localStorage.setItem(cacheKey, coverUrl);
-        } catch (e) {
-          console.debug("Failed to cache cover URL:", e);
-        }
-        return coverUrl;
-      }
-    }
-
-    // Strategy 2: Fallback to Google Books API search by title
-    try {
-      coverUrl = await fetchFromGoogleBooks(title, author);
-      if (coverUrl) {
-        // Cache the result
-        try {
-          localStorage.setItem(cacheKey, coverUrl);
-        } catch (e) {
-          console.debug("Failed to cache cover URL:", e);
-        }
-        return coverUrl;
-      }
-    } catch (e) {
-      console.debug("Google Books fetch failed:", e);
-      // Return null on error
-    }
-
-    // Cache null result to avoid repeated failed API calls
-    try {
-      localStorage.setItem(cacheKey, "");
-    } catch {
-      // Ignore cache errors
-    }
-
-    return null;
-  })();
-
-  // Store the in-flight request
-  inFlightRequests.set(requestKey, requestPromise);
-
-  // Clean up after request completes
-  requestPromise.finally(() => {
-    inFlightRequests.delete(requestKey);
+  // Build query parameters for backend endpoint
+  const params = new URLSearchParams({
+    title: title,
   });
-
-  return requestPromise;
-}
-
-async function fetchFromGoogleBooks(
-  title: string,
-  author?: string
-): Promise<string | null> {
-  try {
-    let query = `intitle:${title}`;
-    if (author) {
-      query += `+inauthor:${author}`;
-    }
-
-    const searchUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(
-      query
-    )}&maxResults=1`;
-
-    // Add timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-
-    const response = await fetch(searchUrl, {
-      signal: controller.signal,
-      cache: "default", // Changed from 'force-cache' - browser cache handles this
-    });
-
-    clearTimeout(timeoutId);
-
-    // Handle rate limiting (429) - don't retry immediately
-    if (response.status === 429) {
-      console.debug("Google Books API rate limited");
-      return null;
-    }
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    if (!data.items || data.items.length === 0) return null;
-
-    const volume = data.items[0];
-    const imageLinks = volume.volumeInfo?.imageLinks;
-    if (!imageLinks) return null;
-
-    // Try different sizes, prefer larger
-    const sizes = ["large", "medium", "small", "thumbnail", "smallThumbnail"];
-    for (const size of sizes) {
-      if (imageLinks[size]) {
-        return imageLinks[size].replace("http://", "https://");
-      }
-    }
-
-    return null;
-  } catch {
-    // If Google Books fails, return null
-    return null;
+  
+  if (author) {
+    params.append("author", author);
   }
+  if (isbn) {
+    params.append("isbn", isbn);
+  }
+  if (imageUrl) {
+    params.append("image_url", imageUrl);
+  }
+
+  // Return the backend URL directly
+  // Browser will cache it automatically via Cache-Control headers
+  return `${API_BASE_URL}/books/_/cover?${params.toString()}`;
 }
