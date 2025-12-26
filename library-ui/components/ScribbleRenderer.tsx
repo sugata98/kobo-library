@@ -22,7 +22,7 @@ export default function ScribbleRenderer({ hex }: { hex: string }) {
     const view = new DataView(bytes.buffer);
     const ints: number[] = [];
 
-    for (let i = 0; i < bytes.length - 4; i += 4) {
+    for (let i = 0; i <= bytes.length - 4; i += 4) {
       ints.push(view.getInt32(i, false)); // Big Endian
     }
 
@@ -52,6 +52,11 @@ export default function ScribbleRenderer({ hex }: { hex: string }) {
     // Check trailing sequence
     if (currentSequence.length > bestSequence.length) {
       bestSequence = currentSequence;
+    }
+
+    // Ensure even length (drop trailing lone value if odd) since we need pairs (x, y)
+    if (bestSequence.length % 2 !== 0) {
+      bestSequence = bestSequence.slice(0, -1);
     }
 
     return bestSequence;
@@ -93,7 +98,8 @@ export default function ScribbleRenderer({ hex }: { hex: string }) {
 
     ctx.moveTo(parsedPoints[0] - minX + 10, parsedPoints[1] - minY + 10);
 
-    for (let i = 2; i < parsedPoints.length; i += 2) {
+    // Iterate to length - 1 to ensure we always have a pair (i, i+1)
+    for (let i = 2; i < parsedPoints.length - 1; i += 2) {
       const x = parsedPoints[i] - minX + 10;
       const y = parsedPoints[i + 1] - minY + 10;
 
