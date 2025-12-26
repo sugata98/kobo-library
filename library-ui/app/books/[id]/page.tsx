@@ -5,6 +5,7 @@ import { useState, useEffect, use } from "react";
 import { getBookHighlights, getBookMarkups, getBookDetails } from "@/lib/api";
 import Link from "next/link";
 import BookCover from "@/components/BookCover";
+import LocationIndicator from "@/components/LocationIndicator";
 
 // Use the backend proxy endpoints
 const getSvgUrl = (markupId: string) =>
@@ -44,55 +45,50 @@ function MarkupImage({ markupId }: { markupId: string }) {
     setSvgError(true);
   };
 
-  // Show loader until image loads or errors
-  // Once image loads, browser will progressively render it
-  const showLoader = !jpgLoaded && !jpgError;
-
   return (
     <div className="border border-gray-200 p-2 rounded bg-white dark:bg-gray-900 relative w-full">
-      {/* Container for overlay */}
-      <div className="relative w-full min-h-[200px]">
-        {/* Subtle skeleton loader - only shown before image starts loading */}
-        {showLoader && (
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded flex items-center justify-center z-0">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400"></div>
-          </div>
-        )}
+      {!showFallback && (
+        <div className="relative min-h-[200px]">
+          {/* Loader - stays in background, gets covered by JPG when it streams in */}
+          {!jpgLoaded && !jpgError && (
+            <div className="absolute inset-0 w-full min-h-[200px] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded flex items-center justify-center z-0">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400"></div>
+            </div>
+          )}
 
-        {/* JPG Background - progressively loads as chunks arrive from streaming */}
-        {!showFallback && (
+          {/* JPG Background - progressively loads and covers the loader as it streams */}
           <img
             src={getJpgUrl(markupId)}
             alt="Page"
-            className="w-full h-auto block relative z-10"
+            className="max-w-full h-auto block relative z-20"
             onLoad={handleJpgLoad}
             onError={handleJpgError}
             loading="eager"
             decoding="async"
           />
-        )}
 
-        {/* SVG Overlay (positioned absolutely on top) */}
-        {!svgError && jpgLoaded && (
-          <img
-            src={getSvgUrl(markupId)}
-            alt="Markup"
-            className="absolute top-0 left-0 w-full h-full pointer-events-none transition-opacity duration-300"
-            style={{ mixBlendMode: "normal", opacity: svgLoaded ? 1 : 0 }}
-            onLoad={handleSvgLoad}
-            onError={handleSvgError}
-          />
-        )}
+          {/* SVG Overlay (positioned absolutely on top) - waits for JPG to load */}
+          {jpgLoaded && !svgError && (
+            <img
+              src={getSvgUrl(markupId)}
+              alt="Markup"
+              className="absolute top-0 left-0 w-full h-full pointer-events-none transition-opacity duration-300 z-30"
+              style={{ mixBlendMode: "normal", opacity: svgLoaded ? 1 : 0 }}
+              onLoad={handleSvgLoad}
+              onError={handleSvgError}
+            />
+          )}
+        </div>
+      )}
 
-        {/* Fallback message */}
-        {showFallback && (
-          <div className="text-xs text-gray-400 text-center p-4">
-            Images not found in B2.
-            <br />
-            (ID: {markupId})
-          </div>
-        )}
-      </div>
+      {/* Fallback message */}
+      {showFallback && (
+        <div className="text-xs text-gray-400 text-center p-4">
+          Images not found in B2.
+          <br />
+          (ID: {markupId})
+        </div>
+      )}
     </div>
   );
 }
@@ -109,6 +105,33 @@ export default function BookDetails({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Helper function to group items by chapter
+  const groupByChapter = (items: any[]) => {
+    const sorted = items.sort((a: any, b: any) => {
+      // Sort by OrderingNumber (if available), then date
+      if (a.OrderingNumber && b.OrderingNumber) {
+        return a.OrderingNumber.localeCompare(b.OrderingNumber, undefined, {
+          numeric: true,
+        });
+      }
+      return (
+        new Date(a.DateCreated).getTime() - new Date(b.DateCreated).getTime()
+      );
+    });
+
+    // Group by ChapterName
+    const grouped: Record<string, any[]> = {};
+    sorted.forEach((item) => {
+      const chapter = item.ChapterName || "Unknown Chapter";
+      if (!grouped[chapter]) {
+        grouped[chapter] = [];
+      }
+      grouped[chapter].push(item);
+    });
+
+    return grouped;
+  };
+
   useEffect(() => {
     const bookId = decodeURIComponent(id);
 
@@ -120,18 +143,7 @@ export default function BookDetails({
       .then(([book, h, m]) => {
         setBookInfo(book);
         setHighlights(h);
-        // Sort markups by ordering number if available, then by date
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const sorted = m.sort((a: any, b: any) => {
-          if (a.OrderingNumber && b.OrderingNumber) {
-            return a.OrderingNumber.localeCompare(b.OrderingNumber);
-          }
-          return (
-            new Date(a.DateCreated).getTime() -
-            new Date(b.DateCreated).getTime()
-          );
-        });
-        setMarkups(sorted);
+        setMarkups(m);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -188,23 +200,50 @@ export default function BookDetails({
           <h2 className="text-xl font-semibold mb-4 border-b pb-2">
             Highlights ({highlights.length})
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {highlights.length === 0 ? (
               <p className="text-gray-500">No highlights found.</p>
             ) : (
-              highlights.map((h) => (
-                <div
-                  key={h.BookmarkID}
-                  className="bg-white dark:bg-gray-800 p-4 rounded shadow"
-                >
-                  <blockquote className="border-l-4 border-yellow-400 pl-4 italic mb-2">
-                    &ldquo;{h.Text}&rdquo;
-                  </blockquote>
-                  <div className="text-xs text-gray-400 mt-2 text-right">
-                    {new Date(h.DateCreated).toLocaleDateString()}
-                  </div>
-                </div>
-              ))
+              (() => {
+                const groupedHighlights = groupByChapter(highlights);
+                return Object.entries(groupedHighlights).map(
+                  ([chapter, items]) => (
+                    <div key={chapter} className="space-y-3">
+                      {/* Chapter header */}
+                      <div className="sticky top-0 bg-gray-50 dark:bg-gray-900 py-2 z-50">
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                          {chapter}
+                        </h3>
+                        <div className="h-px bg-gradient-to-r from-blue-500 to-transparent mt-1"></div>
+                      </div>
+
+                      {/* Chapter items */}
+                      {items.map((h: any, idx: number) => (
+                        <div
+                          key={h.BookmarkID}
+                          className="bg-white dark:bg-gray-800 p-4 rounded shadow"
+                        >
+                          <blockquote className="border-l-4 border-yellow-400 pl-4 italic mb-3">
+                            &ldquo;{h.Text}&rdquo;
+                          </blockquote>
+
+                          <LocationIndicator
+                            index={idx + 1}
+                            total={items.length}
+                            chapterName={null}
+                            chapterProgress={h.TrueChapterProgress}
+                            className="mb-2"
+                          />
+
+                          <div className="text-xs text-gray-400 mt-2 text-right">
+                            {new Date(h.DateCreated).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                );
+              })()
             )}
           </div>
         </section>
@@ -213,41 +252,48 @@ export default function BookDetails({
           <h2 className="text-xl font-semibold mb-4 border-b pb-2">
             Markups ({markups.length})
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {markups.length === 0 ? (
               <p className="text-gray-500">No markups found.</p>
             ) : (
-              markups.map((m) => (
-                <div
-                  key={m.BookmarkID}
-                  className="bg-white dark:bg-gray-800 p-4 rounded shadow"
-                >
-                  <div className="mb-2">
-                    <span className="font-semibold text-sm">Markup ID:</span>{" "}
-                    <span className="text-xs text-gray-500">
-                      {m.BookmarkID}
-                    </span>
-                  </div>
+              (() => {
+                const groupedMarkups = groupByChapter(markups);
+                return Object.entries(groupedMarkups).map(
+                  ([chapter, items]) => (
+                    <div key={chapter} className="space-y-3">
+                      {/* Chapter header */}
+                      <div className="sticky top-0 bg-gray-50 dark:bg-gray-900 py-2 z-50">
+                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                          {chapter}
+                        </h3>
+                        <div className="h-px bg-gradient-to-r from-purple-500 to-transparent mt-1"></div>
+                      </div>
 
-                  {/* Metadata */}
-                  {(m.SectionTitle || m.OrderingNumber || m.BookPartNumber) && (
-                    <div className="text-xs text-gray-500 mb-2">
-                      {m.SectionTitle && (
-                        <span>Section: {m.SectionTitle} | </span>
-                      )}
-                      {m.BookPartNumber && (
-                        <span>Part: {m.BookPartNumber} | </span>
-                      )}
-                      {m.OrderingNumber && (
-                        <span>Order: {m.OrderingNumber}</span>
-                      )}
+                      {/* Chapter items */}
+                      {items.map((m: any, idx: number) => (
+                        <div
+                          key={m.BookmarkID}
+                          className="bg-white dark:bg-gray-800 p-4 rounded shadow"
+                        >
+                          <LocationIndicator
+                            index={idx + 1}
+                            total={items.length}
+                            chapterName={null}
+                            chapterProgress={m.TrueChapterProgress}
+                            className="mb-3"
+                          />
+
+                          <MarkupImage markupId={m.BookmarkID} />
+
+                          <div className="text-xs text-gray-400 mt-2 text-right">
+                            {new Date(m.DateCreated).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
-
-                  {/* Composite: JPG background with SVG overlay */}
-                  <MarkupImage markupId={m.BookmarkID} />
-                </div>
-              ))
+                  )
+                );
+              })()
             )}
           </div>
         </section>

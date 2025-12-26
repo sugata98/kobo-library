@@ -176,13 +176,44 @@ class KoboService:
         conn.row_factory = self._dict_factory
         cursor = conn.cursor()
         query = """
-            SELECT BookmarkID, VolumeID, Text, Annotation, DateCreated, ChapterProgress
-            FROM Bookmark
-            WHERE VolumeID = ? AND Type = 'highlight'
+            SELECT 
+                b.BookmarkID, 
+                b.VolumeID, 
+                b.Text, 
+                b.Annotation, 
+                b.DateCreated, 
+                b.ChapterProgress,
+                b.StartContainerPath,
+                c.Title as SectionTitle,
+                c.VolumeIndex,
+                c.ContentID,
+                (
+                    SELECT ch.Title
+                    FROM content ch
+                    WHERE ch.BookID = c.BookID
+                    AND ch.Depth = 1
+                    AND ch.ContentType = '899'
+                    AND SUBSTR(ch.ContentID, INSTR(ch.ContentID, 'part'), 8) = 
+                        SUBSTR(c.ContentID, INSTR(c.ContentID, 'part'), 8)
+                    LIMIT 1
+                ) as ChapterName
+            FROM Bookmark b
+            LEFT JOIN content c ON c.ContentID = b.ContentID
+            WHERE b.VolumeID = ? AND b.Type = 'highlight'
+            ORDER BY b.DateCreated
         """
         cursor.execute(query, (book_id,))
         highlights = cursor.fetchall()
+        
+        # Calculate true chapter-wide progress for each highlight (before closing connection)
+        highlights = self._calculate_chapter_progress(highlights, book_id, conn)
+        
         conn.close()
+        
+        # Enrich with ordering number
+        for highlight in highlights:
+            highlight['OrderingNumber'] = self._extract_ordering_number(highlight.get('StartContainerPath', ''))
+        
         return highlights
     
     def get_markups(self, book_id: str) -> List[Dict[str, Any]]:
@@ -190,7 +221,7 @@ class KoboService:
         conn.row_factory = self._dict_factory
         cursor = conn.cursor()
         
-        # Enhanced query to get metadata like section title, ordering info
+        # Enhanced query to get metadata like section title, ordering info, and chapter name
         query = """
             SELECT 
                 b.BookmarkID, 
@@ -199,18 +230,35 @@ class KoboService:
                 b.Annotation, 
                 b.ExtraAnnotationData, 
                 b.DateCreated,
+                b.ChapterProgress,
                 b.StartContainerPath,
                 c.Title as SectionTitle,
-                c.adobe_location
+                c.VolumeIndex,
+                c.ContentID,
+                c.adobe_location,
+                (
+                    SELECT ch.Title
+                    FROM content ch
+                    WHERE ch.BookID = c.BookID
+                    AND ch.Depth = 1
+                    AND ch.ContentType = '899'
+                    AND SUBSTR(ch.ContentID, INSTR(ch.ContentID, 'part'), 8) = 
+                        SUBSTR(c.ContentID, INSTR(c.ContentID, 'part'), 8)
+                    LIMIT 1
+                ) as ChapterName
             FROM Bookmark b
             LEFT JOIN content c ON c.ContentID = (
                 SELECT ContentID FROM Bookmark WHERE BookmarkID = b.BookmarkID
             )
             WHERE b.VolumeID = ? AND b.ExtraAnnotationData IS NOT NULL
-            ORDER BY b.DateCreated
+            ORDER BY b.ChapterProgress, b.DateCreated
         """
         cursor.execute(query, (book_id,))
         all_bookmarks = cursor.fetchall()
+        
+        # Calculate true chapter-wide progress for each markup (before closing connection)
+        all_bookmarks = self._calculate_chapter_progress(all_bookmarks, book_id, conn)
+        
         conn.close()
         
         # Enrich with ordering number
@@ -256,5 +304,99 @@ class KoboService:
                 return last_part.split('.')[0]
         
         return None
+    
+    def _calculate_chapter_progress(self, bookmarks: List[Dict[str, Any]], book_id: str, conn) -> List[Dict[str, Any]]:
+        """
+        Calculate true chapter-wide progress for bookmarks.
+        ChapterProgress from Kobo is actually section-relative (resets for each split file).
+        This calculates the true progress across the entire chapter.
+        """
+        try:
+            cursor = conn.cursor()
+            
+            # Group bookmarks by chapter (using part number from ContentID)
+            chapter_ranges = {}  # {part_number: (min_volume_index, max_volume_index)}
+            
+            for bookmark in bookmarks:
+                content_id = bookmark.get('ContentID')
+                if not content_id:
+                    continue
+                
+                # Convert bytes to string if needed
+                if isinstance(content_id, bytes):
+                    content_id = content_id.decode('utf-8', errors='ignore')
+                
+                # Extract part number (e.g., "part0023" from the ContentID)
+                import re
+                part_match = re.search(r'part\d+', content_id)
+                if not part_match:
+                    continue
+                
+                part_number = part_match.group()
+                
+                # If we haven't seen this chapter yet, query its range
+                if part_number not in chapter_ranges:
+                    cursor.execute("""
+                        SELECT MIN(VolumeIndex) as MinIndex, MAX(VolumeIndex) as MaxIndex
+                        FROM content
+                        WHERE BookID = ? 
+                        AND ContentID LIKE ?
+                        AND Depth = 0
+                    """, (book_id, f'%{part_number}%'))
+                    
+                    result = cursor.fetchone()
+                    if result and result.get('MinIndex') is not None and result.get('MaxIndex') is not None:
+                        chapter_ranges[part_number] = (result['MinIndex'], result['MaxIndex'])
+            
+            # Now calculate true progress for each bookmark
+            for bookmark in bookmarks:
+                content_id = bookmark.get('ContentID')
+                section_progress = bookmark.get('ChapterProgress')
+                volume_index = bookmark.get('VolumeIndex')
+                
+                if not content_id or section_progress is None or volume_index is None:
+                    bookmark['TrueChapterProgress'] = None
+                    continue
+                
+                # Convert bytes to string if needed
+                if isinstance(content_id, bytes):
+                    content_id = content_id.decode('utf-8', errors='ignore')
+                
+                # Extract part number
+                import re
+                part_match = re.search(r'part\d+', content_id)
+                if not part_match or part_match.group() not in chapter_ranges:
+                    bookmark['TrueChapterProgress'] = None
+                    continue
+                
+                part_number = part_match.group()
+                chapter_start, chapter_end = chapter_ranges[part_number]
+                total_sections = chapter_end - chapter_start + 1
+                
+                # Safety check
+                if total_sections <= 0:
+                    bookmark['TrueChapterProgress'] = section_progress
+                    continue
+                
+                # Calculate true chapter progress
+                # (current section position + progress within section) / total sections
+                section_position = volume_index - chapter_start
+                true_progress = (section_position + section_progress) / total_sections
+                
+                # Clamp between 0 and 1
+                true_progress = max(0.0, min(1.0, true_progress))
+                
+                bookmark['TrueChapterProgress'] = true_progress
+            
+            return bookmarks
+        except Exception as e:
+            # Log the error and return bookmarks without TrueChapterProgress
+            import traceback
+            print(f"Error calculating chapter progress: {e}")
+            print(traceback.format_exc())
+            # Set TrueChapterProgress to None for all bookmarks
+            for bookmark in bookmarks:
+                bookmark['TrueChapterProgress'] = None
+            return bookmarks
 
 kobo_service = KoboService()
