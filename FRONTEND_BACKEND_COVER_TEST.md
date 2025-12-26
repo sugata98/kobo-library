@@ -84,12 +84,29 @@ INFO:app.api.endpoints:Found cover from online API for: Clean Code
 
 ## Clear Browser Cache
 
-If you want to force fresh fetches to test:
+If you want to force fresh fetches to test (bypass the 30-day HTTP cache):
 
-1. Open DevTools → Application → Local Storage
-2. Find entries starting with `book_cover_v2_`
-3. Delete them
-4. Refresh the page
+### Option 1: Hard Refresh (Easiest)
+- **Windows/Linux**: `Ctrl + Shift + R`
+- **Mac**: `Cmd + Shift + R`
+
+This forces the browser to bypass its HTTP cache and fetch fresh covers from the backend.
+
+### Option 2: Disable Cache in DevTools
+1. Open DevTools (`F12` or `Right-click → Inspect`)
+2. Go to **Network** tab
+3. Check **"Disable cache"** checkbox
+4. Keep DevTools open while testing
+5. Refresh the page
+
+### Option 3: Clear Cached Images and Files
+1. Open DevTools → **Application** tab
+2. Expand **Storage** in sidebar
+3. Click **"Clear site data"** button
+4. Or selectively clear: **Cache Storage** → Right-click → Delete
+5. Refresh the page
+
+**Note**: localStorage is no longer used for cover caching. All caching is handled via standard HTTP Cache-Control headers (30-day expiration).
 
 ## Troubleshooting
 
