@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useMemo, useEffect, useRef } from "react";
 
 export default function ScribbleRenderer({ hex }: { hex: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [parsedPoints, setParsedPoints] = useState<number[]>([]);
 
-  useEffect(() => {
-    if (!hex) return;
+  // Parse hex data to points using useMemo for derived values
+  const parsedPoints = useMemo(() => {
+    if (!hex) return [];
 
     // Convert hex to 32-bit integers (Big Endian)
     // We start scanning after the textual header.
@@ -54,14 +54,7 @@ export default function ScribbleRenderer({ hex }: { hex: string }) {
       bestSequence = currentSequence;
     }
 
-    // Defer setState to avoid synchronous setState in effect
-    const timeoutId = setTimeout(() => {
-      setParsedPoints(bestSequence);
-    }, 0);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
+    return bestSequence;
   }, [hex]);
 
   useEffect(() => {

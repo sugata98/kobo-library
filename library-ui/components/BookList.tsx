@@ -71,7 +71,8 @@ export default function BookList({
       getBooks(1, 100, searchQuery) // Use server-side search with max page size
         .then((response) => {
           const allBooks = response.books || response;
-          setAllBooksForSearch(allBooks);
+          // Ensure we always have an array, even if response structure is unexpected
+          setAllBooksForSearch(Array.isArray(allBooks) ? allBooks : []);
         })
         .catch(() => {
           setAllBooksForSearch([]);
@@ -85,15 +86,8 @@ export default function BookList({
   if (loading && !searchQuery) return <div>Loading books...</div>;
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
-  // Filter books based on search query
-  const displayBooks = searchQuery
-    ? allBooksForSearch.filter((book) => {
-        const query = searchQuery.toLowerCase();
-        const title = (book.Title || "").toLowerCase();
-        const author = (book.Author || "").toLowerCase();
-        return title.includes(query) || author.includes(query);
-      })
-    : books;
+  // Use server-filtered results directly when searching, paginated results otherwise
+  const displayBooks = searchQuery ? allBooksForSearch : books;
 
   const handlePageChange = (newPage: number) => {
     // Request the intended page but don't update state directly
