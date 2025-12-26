@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getBookCoverUrl } from "@/lib/api";
 
 interface BookCoverProps {
@@ -25,15 +25,30 @@ export default function BookCover({
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const prevBookKeyRef = useRef<string>("");
+
+  // Generate a key for the current book to detect changes
+  const currentBookKey = `${title}-${author}-${isbn}`;
 
   // Fetch cover URL
   useEffect(() => {
+    // Reset image state when book changes (detected via key comparison)
+    const bookChanged = prevBookKeyRef.current !== currentBookKey;
+    if (bookChanged) {
+      prevBookKeyRef.current = currentBookKey;
+      // Reset state asynchronously to avoid synchronous setState in effect
+      queueMicrotask(() => {
+        setImageLoaded(false);
+        setImageError(false);
+      });
+    }
+
     if (!title) {
-      // Use setTimeout to avoid synchronous setState in effect
-      const timeoutId = setTimeout(() => {
+      // Set coverUrl asynchronously to avoid synchronous setState
+      queueMicrotask(() => {
         setCoverUrl(null);
-      }, 0);
-      return () => clearTimeout(timeoutId);
+      });
+      return;
     }
 
     let cancelled = false;
@@ -41,6 +56,9 @@ export default function BookCover({
     getBookCoverUrl(title, author, isbn)
       .then((url) => {
         if (!cancelled) {
+          // Reset state and set new URL in the async callback
+          setImageLoaded(false);
+          setImageError(false);
           setCoverUrl(url);
         }
       })
@@ -54,7 +72,7 @@ export default function BookCover({
     return () => {
       cancelled = true;
     };
-  }, [title, author, isbn]);
+  }, [title, author, isbn, currentBookKey]);
 
   const handleImageLoad = () => {
     setImageLoaded(true);
