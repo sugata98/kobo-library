@@ -167,6 +167,7 @@ export default function BookDetails({
             title={bookInfo.Title}
             author={bookInfo.Author}
             isbn={bookInfo.ISBN}
+            imageUrl={bookInfo.ImageUrl}
             className="relative w-32 h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden rounded-lg shadow-md"
             iconSize="w-12 h-12"
           />

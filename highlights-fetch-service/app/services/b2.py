@@ -7,22 +7,31 @@ from io import BytesIO
 logger = logging.getLogger(__name__)
 
 class B2Service:
-    def __init__(self):
+    def __init__(self, key_id=None, app_key=None, bucket_name=None, service_name="B2"):
+        """
+        Initialize B2 service with optional custom credentials.
+        If credentials not provided, uses default from settings.
+        """
+        self.service_name = service_name
+        self.key_id = key_id or settings.B2_APPLICATION_KEY_ID
+        self.app_key = app_key or settings.B2_APPLICATION_KEY
+        self.bucket_name = bucket_name or settings.B2_BUCKET_NAME
+        
         self.info = InMemoryAccountInfo()
         self.b2_api = B2Api(self.info)
         self.bucket = None
         try:
-            self.b2_api.authorize_account("production", settings.B2_APPLICATION_KEY_ID, settings.B2_APPLICATION_KEY)
-            self.bucket = self.b2_api.get_bucket_by_name(settings.B2_BUCKET_NAME)
-            logger.info("Successfully connected to B2 Cloud")
+            self.b2_api.authorize_account("production", self.key_id, self.app_key)
+            self.bucket = self.b2_api.get_bucket_by_name(self.bucket_name)
+            logger.info(f"Successfully connected to {service_name} bucket: {self.bucket_name}")
         except Exception as e:
-            logger.warning(f"Failed to connect to B2 Cloud: {e}. Sync features will not work until credentials are configured.")
+            logger.warning(f"Failed to connect to {service_name} bucket '{self.bucket_name}': {e}")
 
     def _ensure_connected(self):
         if not self.bucket:
             try:
-                self.b2_api.authorize_account("production", settings.B2_APPLICATION_KEY_ID, settings.B2_APPLICATION_KEY)
-                self.bucket = self.b2_api.get_bucket_by_name(settings.B2_BUCKET_NAME)
+                self.b2_api.authorize_account("production", self.key_id, self.app_key)
+                self.bucket = self.b2_api.get_bucket_by_name(self.bucket_name)
             except Exception as e:
                 raise Exception(f"B2 Connection failed: {e}")
 
@@ -46,6 +55,18 @@ class B2Service:
         download_dest.save(buffer)
         buffer.seek(0)
         return buffer.read()
+    
+    def upload_file(self, file_data: BytesIO, file_name: str, content_type: str = "application/octet-stream"):
+        """Upload file to B2 bucket"""
+        self._ensure_connected()
+        # Upload from BytesIO stream
+        file_data.seek(0)  # Ensure we're at the start
+        self.bucket.upload_bytes(
+            data_bytes=file_data.read(),
+            file_name=file_name,
+            content_type=content_type
+        )
+        logger.info(f"Uploaded file to B2: {file_name}")
     
     def get_file_stream(self, file_name: str):
         """
@@ -95,4 +116,19 @@ class B2Service:
                 logger.error(f"Error downloading chunk at offset {offset}: {e}")
                 raise
 
-b2_service = B2Service()
+# Main B2 service for KoboSync bucket (database and markups)
+b2_service = B2Service(
+    key_id=settings.B2_APPLICATION_KEY_ID,
+    app_key=settings.B2_APPLICATION_KEY,
+    bucket_name=settings.B2_BUCKET_NAME,
+    service_name="KoboSync"
+)
+
+# Separate B2 service for covers bucket (if configured)
+# Falls back to main bucket if covers-specific credentials not provided
+b2_covers_service = B2Service(
+    key_id=settings.B2_COVERS_APPLICATION_KEY_ID or settings.B2_APPLICATION_KEY_ID,
+    app_key=settings.B2_COVERS_APPLICATION_KEY or settings.B2_APPLICATION_KEY,
+    bucket_name=settings.B2_COVERS_BUCKET_NAME or settings.B2_BUCKET_NAME,
+    service_name="Covers Cache"
+)

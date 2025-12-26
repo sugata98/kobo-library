@@ -113,6 +113,7 @@ export default function BookList({
                 title={book.Title}
                 author={book.Author}
                 isbn={book.ISBN}
+                imageUrl={book.ImageUrl}
                 className="relative w-full aspect-[2/3] max-h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden"
                 iconSize="w-16 h-16"
                 showPlaceholderText={true}

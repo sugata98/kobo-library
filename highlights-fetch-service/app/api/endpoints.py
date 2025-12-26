@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException, Response, Query
 from fastapi.responses import StreamingResponse
-from app.services.b2 import b2_service
+from app.services.b2 import b2_service, b2_covers_service
 from app.services.kobo import kobo_service
 from app.services.cover_service import cover_service
 from app.core.config import settings
 import os
 import logging
 import urllib.parse
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -136,27 +137,36 @@ def get_book_markups(book_id: str):
 def get_book_cover(
     book_id: str, 
     title: str = Query(None, description="Book title"),
-    author: str = Query(None, description="Book author")
+    author: str = Query(None, description="Book author"),
+    isbn: str = Query(None, description="Book ISBN-13"),
+    image_url: str = Query(None, description="Book ImageUrl from database")
 ):
     """
-    Get book cover image from free online APIs (Open Library, Google Books).
+    Get book cover image with smart fallback strategy.
     
-    Fetches covers directly from online APIs based on book title and author.
-    Pass title (and optionally author) as query parameters.
+    Priority order:
+    1. ImageUrl from Kobo database (for articles/books with embedded covers)
+    2. bookcover-api (Goodreads) - best quality for published books
+    3. Open Library - fallback
+    4. Google Books - fallback
     
-    Example: /api/books/{book_id}/cover?title=Clean Code&author=Robert Martin
+    Example: /api/books/{book_id}/cover?title=Clean Code&author=Robert Martin&isbn=9780132350884
     """
     # Decode URL-encoded parameters
     if title:
         title = urllib.parse.unquote(title)
     if author:
         author = urllib.parse.unquote(author)
+    if isbn:
+        isbn = urllib.parse.unquote(isbn)
+    if image_url:
+        image_url = urllib.parse.unquote(image_url)
     
-    logger.info(f"Fetching cover for book_id: {book_id}, title: {title}, author: {author}")
+    logger.info(f"Fetching cover for book_id: {book_id}, title: {title}, author: {author}, isbn: {isbn}, image_url: {image_url}")
     
-    # Use provided title/author or fetch from database as fallback
-    if not title:
-        # Fallback: Get from database if title not provided
+    # Use provided parameters or fetch from database as fallback
+    if not title or not image_url:
+        # Fallback: Get from database if parameters not provided
         try:
             if os.path.exists(settings.LOCAL_DB_PATH):
                 decoded_book_id = urllib.parse.unquote(book_id)
@@ -165,14 +175,20 @@ def get_book_cover(
                     book = kobo_service.get_book_by_id(book_id)
                 
                 if book:
-                    title = book.get('Title')
+                    title = book.get('Title') if not title else title
                     author = book.get('Author') if not author else author
+                    isbn = book.get('ISBN') if not isbn else isbn
+                    image_url = book.get('ImageUrl') if not image_url else image_url
                     
                     # Handle bytes if needed
                     if isinstance(title, bytes):
                         title = title.decode('utf-8', errors='ignore')
                     if isinstance(author, bytes):
                         author = author.decode('utf-8', errors='ignore')
+                    if isinstance(isbn, bytes):
+                        isbn = isbn.decode('utf-8', errors='ignore')
+                    if isinstance(image_url, bytes):
+                        image_url = image_url.decode('utf-8', errors='ignore')
         except Exception as e:
             logger.debug(f"Could not get book info from database: {e}")
     
@@ -182,13 +198,50 @@ def get_book_cover(
             detail="Title is required. Pass 'title' as query parameter: /api/books/{book_id}/cover?title=Book Title"
         )
     
-    # Fetch cover from free online APIs
+    # PRIORITY 1: Try ImageUrl from Kobo database first (for articles/embedded covers)
+    if image_url and image_url.strip():
+        try:
+            logger.info(f"📚 Found ImageUrl in database: {image_url[:100]}...")
+            # Try to fetch the image from the URL
+            img_response = requests.get(image_url, timeout=10)
+            if img_response.status_code == 200 and img_response.content and len(img_response.content) > 0:
+                # Detect content type from response
+                content_type = img_response.headers.get('content-type', 'image/jpeg')
+                logger.info(f"✅ Successfully fetched cover from ImageUrl for: {title}")
+                
+                # Return with Cache-Control headers for browser caching
+                return Response(
+                    content=img_response.content, 
+                    media_type=content_type,
+                    headers={
+                        "Cache-Control": "public, max-age=2592000, immutable",  # 30 days
+                        "Content-Length": str(len(img_response.content))
+                    }
+                )
+            else:
+                logger.warning(f"⚠️  ImageUrl returned status {img_response.status_code}, falling back to external APIs")
+        except Exception as e:
+            logger.warning(f"⚠️  Failed to fetch ImageUrl: {e}, falling back to external APIs")
+    
+    # PRIORITY 2-4: Fallback to external APIs with B2 caching (bookcover-api, Open Library, Google Books)
     try:
-        cover_result = cover_service.fetch_cover(title, author)
+        # Set B2 covers service on cover_service for caching
+        cover_service.b2_service = b2_covers_service
+        
+        cover_result = cover_service.fetch_cover(title, author, isbn, image_url)
         if cover_result:
             image_bytes, content_type = cover_result
             logger.info(f"Found cover from online API for: {title}")
-            return Response(content=image_bytes, media_type=content_type)
+            
+            # Return with Cache-Control headers for browser caching
+            return Response(
+                content=image_bytes, 
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "public, max-age=2592000, immutable",  # 30 days
+                    "Content-Length": str(len(image_bytes))
+                }
+            )
         else:
             logger.warning(f"No cover found in online APIs for: {title} by {author or 'Unknown'}")
     except Exception as e:
@@ -198,10 +251,10 @@ def get_book_cover(
             detail=f"Error fetching cover: {str(e)}"
         )
     
-    # If no cover found from APIs
+    # If no cover found from any source
     raise HTTPException(
         status_code=404, 
-        detail=f"Cover image not found in online APIs for: {title}"
+        detail=f"Cover image not found for: {title}"
     )
 
 @router.get("/books/{book_id:path}")

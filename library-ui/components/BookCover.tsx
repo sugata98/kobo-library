@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { getBookCoverUrl } from "@/lib/api";
 
 interface BookCoverProps {
   title: string;
   author?: string;
   isbn?: string;
+  imageUrl?: string;
   className?: string;
   iconSize?: string;
   showPlaceholderText?: boolean;
@@ -17,33 +18,16 @@ export default function BookCover({
   title,
   author,
   isbn,
+  imageUrl,
   className = "relative w-full aspect-[2/3] max-h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden",
   iconSize = "w-16 h-16",
   showPlaceholderText = false,
   imageClassName = "w-full h-full object-cover",
 }: BookCoverProps) {
-  const [coverUrl, setCoverUrl] = useState<string | null>(title ? null : null);
+  // Get cover URL directly (synchronous, no promises needed)
+  const coverUrl = title ? getBookCoverUrl(title, author, isbn, imageUrl) : null;
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-
-  // Fetch cover URL
-  useEffect(() => {
-    if (!title) return;
-
-    let cancelled = false;
-
-    getBookCoverUrl(title, author, isbn)
-      .then((url) => {
-        if (!cancelled) setCoverUrl(url);
-      })
-      .catch(() => {
-        if (!cancelled) setCoverUrl(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [title, author, isbn]);
 
   const handleImageLoad = () => {
     setImageLoaded(true);
