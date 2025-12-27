@@ -21,8 +21,10 @@ import { BRANDING } from "@/lib/branding";
 
 export default function BookList({
   searchQuery = "",
+  contentType = null,
 }: {
   searchQuery?: string;
+  contentType?: string | null;
 }) {
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +41,11 @@ export default function BookList({
 
   const pageSize = 10;
 
+  // Reset to page 1 when content type changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [contentType]);
+
   // Fetch paginated books
   useEffect(() => {
     if (searchQuery) return; // Don't fetch paginated when searching
@@ -48,7 +55,7 @@ export default function BookList({
     (async () => {
       setLoading(true);
       try {
-        const response = await getBooks(currentPage, pageSize);
+        const response = await getBooks(currentPage, pageSize, undefined, contentType);
 
         if (cancelled) return;
 
@@ -75,13 +82,13 @@ export default function BookList({
     return () => {
       cancelled = true;
     };
-  }, [currentPage, searchQuery]);
+  }, [currentPage, searchQuery, contentType]);
 
   // When searching, use server-side search
   useEffect(() => {
     if (searchQuery) {
       setSearchLoading(true);
-      getBooks(1, 100, searchQuery) // Use server-side search with max page size
+      getBooks(1, 100, searchQuery, contentType) // Use server-side search with max page size
         .then((response) => {
           const allBooks = response.books || response;
           // Ensure we always have an array, even if response structure is unexpected
@@ -94,7 +101,7 @@ export default function BookList({
     } else {
       setAllBooksForSearch([]);
     }
-  }, [searchQuery]);
+  }, [searchQuery, contentType]);
 
   if (error) return <div className="text-destructive">Error: {error}</div>;
 

@@ -10,7 +10,8 @@ export async function syncData() {
 export async function getBooks(
   page: number = 1,
   pageSize: number = 10,
-  search?: string
+  search?: string,
+  contentType?: string | null
 ) {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -18,6 +19,9 @@ export async function getBooks(
   });
   if (search) {
     params.append("search", search);
+  }
+  if (contentType) {
+    params.append("type", contentType);
   }
   const res = await fetch(`${API_BASE_URL}/books?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to fetch books");
@@ -50,14 +54,14 @@ export async function getBookDetails(bookId: string) {
 
 /**
  * Get book cover URL from backend API.
- * 
+ *
  * Backend handles:
  * 1. B2 Cache - instant serving from cache
  * 2. ImageUrl from Kobo database (for articles/embedded covers)
  * 3. bookcover-api (Goodreads) - highest quality
  * 4. Open Library API - fallback
  * 5. Google Books API - final fallback
- * 
+ *
  * Browser HTTP cache handles caching via Cache-Control headers (30 days).
  * No localStorage needed - simpler and more reliable!
  */
@@ -73,7 +77,7 @@ export function getBookCoverUrl(
   const params = new URLSearchParams({
     title: title,
   });
-  
+
   if (author) {
     params.append("author", author);
   }

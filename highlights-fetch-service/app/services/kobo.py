@@ -36,7 +36,7 @@ class KoboService:
                 d[col_name] = value
         return d
 
-    def get_books(self, limit: Optional[int] = None, offset: Optional[int] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_books(self, limit: Optional[int] = None, offset: Optional[int] = None, search: Optional[str] = None, content_type: Optional[str] = None) -> List[Dict[str, Any]]:
         conn = self.get_connection()
         conn.row_factory = self._dict_factory
         cursor = conn.cursor()
@@ -52,7 +52,16 @@ class KoboService:
                 MAX(c1.DateCreated) as DateCreated, 
                 MAX(c1.___PercentRead) as ___PercentRead,
                 c1.ImageUrl,
-                c1.ISBN
+                c1.ISBN,
+                c1.MimeType,
+                CASE 
+                    WHEN c1.MimeType LIKE '%instapaper%' THEN 'article'
+                    WHEN c1.MimeType LIKE '%pocket%' THEN 'article'
+                    WHEN c1.MimeType LIKE '%epub%' THEN 'book'
+                    WHEN c1.MimeType LIKE '%pdf%' THEN 'pdf'
+                    WHEN c1.MimeType LIKE '%nebo%' THEN 'notebook'
+                    ELSE 'other'
+                END as ContentCategory
             FROM content c1
             WHERE c1.ContentType = '6' 
             AND (c1.BookID IS NULL OR c1.BookID = '')
@@ -68,14 +77,30 @@ class KoboService:
             )
         """
         
-        # Add search filter if provided (before GROUP BY)
+        # Add content type filter if provided
         search_params = []
+        if content_type:
+            query += """
+            AND (
+                CASE 
+                    WHEN c1.MimeType LIKE '%instapaper%' THEN 'article'
+                    WHEN c1.MimeType LIKE '%pocket%' THEN 'article'
+                    WHEN c1.MimeType LIKE '%epub%' THEN 'book'
+                    WHEN c1.MimeType LIKE '%pdf%' THEN 'pdf'
+                    WHEN c1.MimeType LIKE '%nebo%' THEN 'notebook'
+                    ELSE 'other'
+                END
+            ) = ?
+            """
+            search_params.append(content_type)
+        
+        # Add search filter if provided (before GROUP BY)
         if search:
             search_term = f"%{search.lower()}%"
             query += """
             AND (LOWER(c1.Title) LIKE ? OR LOWER(c1.Attribution) LIKE ?)
             """
-            search_params = [search_term, search_term]
+            search_params.extend([search_term, search_term])
         
         query += """
             GROUP BY c1.Title, c1.Attribution
@@ -106,8 +131,8 @@ class KoboService:
         
         return books
     
-    def get_total_books(self, search: Optional[str] = None) -> int:
-        """Get the total count of unique books, optionally filtered by search"""
+    def get_total_books(self, search: Optional[str] = None, content_type: Optional[str] = None) -> int:
+        """Get the total count of unique books, optionally filtered by search and content type"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
@@ -128,14 +153,30 @@ class KoboService:
             )
         """
         
-        # Add search filter if provided
+        # Add content type filter if provided
         search_params = []
+        if content_type:
+            query += """
+            AND (
+                CASE 
+                    WHEN c1.MimeType LIKE '%instapaper%' THEN 'article'
+                    WHEN c1.MimeType LIKE '%pocket%' THEN 'article'
+                    WHEN c1.MimeType LIKE '%epub%' THEN 'book'
+                    WHEN c1.MimeType LIKE '%pdf%' THEN 'pdf'
+                    WHEN c1.MimeType LIKE '%nebo%' THEN 'notebook'
+                    ELSE 'other'
+                END
+            ) = ?
+            """
+            search_params.append(content_type)
+        
+        # Add search filter if provided
         if search:
             search_term = f"%{search.lower()}%"
             query += """
             AND (LOWER(c1.Title) LIKE ? OR LOWER(c1.Attribution) LIKE ?)
             """
-            search_params = [search_term, search_term]
+            search_params.extend([search_term, search_term])
         
         if search_params:
             cursor.execute(query, search_params)
