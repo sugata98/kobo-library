@@ -3,7 +3,5 @@
   "outputDirectory": "library-ui/.next",
   "devCommand": "cd library-ui && npm run dev",
   "installCommand": "cd library-ui && npm install",
-  "framework": "nextjs",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./library-ui"
+  "framework": "nextjs"
 }
-
