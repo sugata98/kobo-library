@@ -23,7 +23,7 @@ export default function Home() {
     <main className="min-h-screen bg-background text-foreground">
       {/* Header with Logo, Search, and Theme Toggle */}
       <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
-        <div className="px-24 py-4">
+        <div className="px-4 sm:px-8 lg:px-24 py-4">
           <div className="flex items-center justify-between gap-4">
             {/* Logo - Left */}
             <div className="shrink-0 flex items-center gap-3">
@@ -62,7 +62,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <div className="px-24 py-6">
+      <div className="px-4 sm:px-8 lg:px-24 py-6">
         <BookList searchQuery={debouncedSearchQuery} />
       </div>
     </main>

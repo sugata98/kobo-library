@@ -1,4 +1,5 @@
 import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -27,9 +28,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     return (
       <button
-        className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${
-          className || ""
-        }`}
+        className={cn(
+          baseStyles,
+          variants[variant] || variants.default,
+          sizes[size] || sizes.default,
+          className
+        )}
         ref={ref}
         {...props}
       />

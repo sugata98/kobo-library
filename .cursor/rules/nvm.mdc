@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+Always do nvm use 20 before running any npm commands
