@@ -6,11 +6,10 @@ import { getBookHighlights, getBookMarkups, getBookDetails } from "@/lib/api";
 import Link from "next/link";
 import BookCover from "@/components/BookCover";
 import LocationIndicator from "@/components/LocationIndicator";
+import LazyMarkupImage from "@/components/LazyMarkupImage";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Empty,
@@ -19,94 +18,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Highlighter, ImageIcon, ArrowLeft, BookOpen } from "lucide-react";
+import { Highlighter, ImageIcon, BookOpen } from "lucide-react";
 import { BRANDING } from "@/lib/branding";
-
-// Use the backend proxy endpoints
-const getSvgUrl = (markupId: string) =>
-  `${
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
-  }/markup/${markupId}/svg`;
-
-const getJpgUrl = (markupId: string) =>
-  `${
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
-  }/markup/${markupId}/jpg`;
-
-// Component to handle markup image loading with state management and progressive loading
-// Using <img> instead of Next.js Image for dynamic API endpoints with overlay behavior
-/* eslint-disable @next/next/no-img-element */
-function MarkupImage({ markupId }: { markupId: string }) {
-  const [jpgLoaded, setJpgLoaded] = useState(false);
-  const [svgLoaded, setSvgLoaded] = useState(false);
-  const [jpgError, setJpgError] = useState(false);
-  const [svgError, setSvgError] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
-
-  const handleJpgLoad = () => {
-    setJpgLoaded(true);
-  };
-
-  const handleJpgError = () => {
-    setJpgError(true);
-    setShowFallback(true);
-  };
-
-  const handleSvgLoad = () => {
-    setSvgLoaded(true);
-  };
-
-  const handleSvgError = () => {
-    setSvgError(true);
-  };
-
-  return (
-    <div className="border border-border p-2 rounded bg-card relative w-full">
-      {!showFallback && (
-        <div className="relative min-h-[200px]">
-          {/* Loader - stays in background, gets covered by JPG when it streams in */}
-          {!jpgLoaded && !jpgError && (
-            <div className="absolute inset-0 w-full min-h-[200px] bg-gradient-to-br from-muted to-muted/80 animate-pulse rounded flex items-center justify-center z-0">
-              <Spinner className="size-8 text-primary" />
-            </div>
-          )}
-
-          {/* JPG Background - progressively loads and covers the loader as it streams */}
-          <img
-            src={getJpgUrl(markupId)}
-            alt="Page"
-            className="max-w-full h-auto block relative z-20"
-            onLoad={handleJpgLoad}
-            onError={handleJpgError}
-            loading="eager"
-            decoding="async"
-          />
-
-          {/* SVG Overlay (positioned absolutely on top) - waits for JPG to load */}
-          {jpgLoaded && !svgError && (
-            <img
-              src={getSvgUrl(markupId)}
-              alt="Markup"
-              className="absolute top-0 left-0 w-full h-full pointer-events-none transition-opacity duration-300 z-30"
-              style={{ mixBlendMode: "normal", opacity: svgLoaded ? 1 : 0 }}
-              onLoad={handleSvgLoad}
-              onError={handleSvgError}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Fallback message */}
-      {showFallback && (
-        <div className="text-xs text-muted-foreground text-center p-4">
-          Images not found in B2.
-          <br />
-          (ID: {markupId})
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function BookDetails({
   params,
@@ -391,7 +304,7 @@ export default function BookDetails({
                         </div>
                       </div>
 
-                      {/* Chapter items */}
+                      {/* Chapter items - Priority load first 3, lazy load rest */}
                       {items.map((m: any, idx: number) => (
                         <Card
                           key={m.BookmarkID}
@@ -418,7 +331,11 @@ export default function BookDetails({
                               </div>
                             </div>
 
-                            <MarkupImage markupId={m.BookmarkID} />
+                            <LazyMarkupImage
+                              markupId={m.BookmarkID}
+                              priority={idx < 3}
+                              preloadMargin="400px"
+                            />
                           </CardContent>
                         </Card>
                       ))}

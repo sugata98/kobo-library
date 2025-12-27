@@ -52,6 +52,25 @@ class CoverService:
             logger.debug(f"B2 cache miss or error: {e}")
             return None
     
+    def get_from_b2_cache_stream(self, title: str, author: Optional[str] = None, isbn: Optional[str] = None, image_url: Optional[str] = None):
+        """
+        Check if cover exists in B2 cache and return it as a streaming generator.
+        Returns generator if found, None otherwise.
+        """
+        if not self.b2_service:
+            return None
+        
+        try:
+            cache_key = self._generate_cache_key(title, author, isbn, image_url)
+            
+            logger.info(f"💾 Checking B2 covers cache (streaming): {cache_key}")
+            stream = self.b2_service.get_file_stream(cache_key)
+            logger.info(f"✅ Found cover in B2 cache (streaming) for: {title}")
+            return stream
+        except Exception as e:
+            logger.debug(f"B2 cache miss or error (streaming): {e}")
+            return None
+    
     def store_to_b2_cache(self, image_bytes: bytes, title: str, author: Optional[str] = None, isbn: Optional[str] = None, image_url: Optional[str] = None) -> bool:
         """Store cover image to B2 cache"""
         if not self.b2_service or not image_bytes:
