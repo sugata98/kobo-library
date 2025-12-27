@@ -6,4 +6,7 @@ pydantic-settings
 python-dotenv
 sqlalchemy
 requests
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
 

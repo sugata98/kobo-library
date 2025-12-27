@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import BookList from "@/components/BookList";
 import { ModeToggle } from "@/components/ThemeToggle";
+import { LogoutButton } from "@/components/LogoutButton";
 import { Search, BookOpen, FileText } from "lucide-react";
 import Image from "next/image";
 import {
@@ -56,9 +57,10 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Theme Toggle */}
-            <div className="shrink-0">
+            {/* Theme Toggle and Logout */}
+            <div className="shrink-0 flex items-center gap-2">
               <ModeToggle />
+              <LogoutButton />
             </div>
           </div>
         </div>

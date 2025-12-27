@@ -15,6 +15,14 @@ class Settings(BaseSettings):
     B2_COVERS_BUCKET_NAME: Optional[str] = None
     
     LOCAL_DB_PATH: str = "/tmp/KoboReader.sqlite"
+    
+    # Authentication settings
+    AUTH_ENABLED: bool = True  # Set to False to disable authentication
+    AUTH_USERNAME: str  # Set via environment variable
+    AUTH_PASSWORD: str  # Set via environment variable
+    JWT_SECRET_KEY: str  # Set via environment variable - use a long random string!
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200  # 30 days
 
     class Config:
         env_file = ".env"

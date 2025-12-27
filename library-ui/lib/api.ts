@@ -2,7 +2,10 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 export async function syncData() {
-  const res = await fetch(`${API_BASE_URL}/sync`, { method: "POST" });
+  const res = await fetch(`${API_BASE_URL}/sync`, {
+    method: "POST",
+    credentials: "include", // Important: send cookies
+  });
   if (!res.ok) throw new Error("Failed to sync data");
   return res.json();
 }
@@ -23,14 +26,19 @@ export async function getBooks(
   if (contentType) {
     params.append("type", contentType);
   }
-  const res = await fetch(`${API_BASE_URL}/books?${params.toString()}`);
+  const res = await fetch(`${API_BASE_URL}/books?${params.toString()}`, {
+    credentials: "include", // Important: send cookies
+  });
   if (!res.ok) throw new Error("Failed to fetch books");
   return res.json();
 }
 
 export async function getBookHighlights(bookId: string) {
   const res = await fetch(
-    `${API_BASE_URL}/books/${encodeURIComponent(bookId)}/highlights`
+    `${API_BASE_URL}/books/${encodeURIComponent(bookId)}/highlights`,
+    {
+      credentials: "include", // Important: send cookies
+    }
   );
   if (!res.ok) throw new Error("Failed to fetch highlights");
   return res.json();
@@ -38,7 +46,10 @@ export async function getBookHighlights(bookId: string) {
 
 export async function getBookMarkups(bookId: string) {
   const res = await fetch(
-    `${API_BASE_URL}/books/${encodeURIComponent(bookId)}/markups`
+    `${API_BASE_URL}/books/${encodeURIComponent(bookId)}/markups`,
+    {
+      credentials: "include", // Important: send cookies
+    }
   );
   if (!res.ok) throw new Error("Failed to fetch markups");
   return res.json();
@@ -46,7 +57,10 @@ export async function getBookMarkups(bookId: string) {
 
 export async function getBookDetails(bookId: string) {
   const res = await fetch(
-    `${API_BASE_URL}/books/${encodeURIComponent(bookId)}`
+    `${API_BASE_URL}/books/${encodeURIComponent(bookId)}`,
+    {
+      credentials: "include", // Important: send cookies
+    }
   );
   if (!res.ok) throw new Error("Failed to fetch book details");
   return res.json();
