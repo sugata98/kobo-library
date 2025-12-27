@@ -1,5 +1,5 @@
 # Core Framework & Dependencies
-# Note: Consider pinning all dependencies for production (see DEPENDENCY_MANAGEMENT.md)
+# Note: Consider pinning all dependencies for production (see ../docs/DEPENDENCY_MANAGEMENT.md)
 fastapi
 uvicorn
 b2sdk
@@ -11,7 +11,7 @@ requests
 
 # Authentication & Security packages (pinned for security and reproducibility)
 # IMPORTANT: These are pinned to specific tested versions. Do not change without testing.
-# See DEPENDENCY_MANAGEMENT.md for version selection rationale and compatibility notes.
+# See ../docs/DEPENDENCY_MANAGEMENT.md for version selection rationale and compatibility notes.
 python-jose[cryptography]==3.5.0  # JWT token handling with cryptography backend
 passlib[bcrypt]==1.7.4             # Password hashing with bcrypt support
 bcrypt==4.1.3                      # Bcrypt backend (pinned for passlib 1.7.4 compatibility, NOT 5.x!)

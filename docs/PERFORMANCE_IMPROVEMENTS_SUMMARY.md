@@ -132,8 +132,7 @@ If issues arise:
 
 ## Documentation
 
-- `highlights-fetch-service/WORKER_CONFIGURATION.md`: Worker count guidelines
-- `library-ui/LAZY_LOADING_STRATEGY.md`: Lazy loading implementation details
+- `docs/LAZY_LOADING_STRATEGY.md`: Lazy loading implementation details
 
 ## Next Steps
 

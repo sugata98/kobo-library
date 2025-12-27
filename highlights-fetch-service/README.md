@@ -64,7 +64,7 @@ python -c 'import secrets; print(secrets.token_urlsafe(32))'
 - ✅ **Token Expiry Limits**: Maximum 30-day token lifetime
 - ✅ **Fail-Fast Validation**: Application won't start with weak secrets
 
-See `SECURITY_IMPROVEMENTS.md` for detailed security documentation.
+See `../docs/SECURITY_IMPROVEMENTS.md` for detailed security documentation.
 
 ### Test Security Configuration
 
@@ -108,7 +108,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ## Dependency Management
 
-Authentication and security packages are pinned to specific tested versions for security and reproducibility. See `DEPENDENCY_MANAGEMENT.md` for:
+Authentication and security packages are pinned to specific tested versions for security and reproducibility. See `../docs/DEPENDENCY_MANAGEMENT.md` for:
 
 - Rationale for pinned versions
 - Compatibility notes (especially bcrypt/passlib)

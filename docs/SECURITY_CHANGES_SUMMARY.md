@@ -71,13 +71,13 @@ Enhanced security for sensitive configuration values with validation and protect
   - `bcrypt==4.1.3` (pinned for passlib compatibility)
   - `python-multipart==0.0.21` (latest stable)
 - Added explanatory comments
-- Reference to DEPENDENCY_MANAGEMENT.md
+- Reference to `DEPENDENCY_MANAGEMENT.md` (now in `docs/`)
 
 **Impact:** Reproducible builds, prevents supply chain attacks, ensures compatibility
 
 ## New Files Created
 
-### 1. `SECURITY_IMPROVEMENTS.md` ✅
+### 1. `docs/SECURITY_IMPROVEMENTS.md` ✅
 
 Comprehensive documentation covering:
 
@@ -97,7 +97,7 @@ Automated test suite to verify:
 
 **Usage:** `python test_config_validation.py`
 
-### 3. `DEPENDENCY_MANAGEMENT.md` ✅
+### 3. `docs/DEPENDENCY_MANAGEMENT.md` ✅
 
 Comprehensive dependency management documentation:
 
@@ -203,7 +203,7 @@ echo -n "$JWT_SECRET_KEY" | wc -c
 
 ## Related Documentation
 
-- `SECURITY_IMPROVEMENTS.md` - Detailed technical documentation
+- `SECURITY_IMPROVEMENTS.md` - Detailed technical documentation (in `docs/`)
 - `example.env` - Environment variable template with comments
 - `README.md` - Updated deployment instructions
 - `test_config_validation.py` - Automated test suite
@@ -211,4 +211,4 @@ echo -n "$JWT_SECRET_KEY" | wc -c
 ---
 
 **Questions or Issues?**
-See `SECURITY_IMPROVEMENTS.md` for troubleshooting and detailed explanation of all changes.
+See `SECURITY_IMPROVEMENTS.md` (in `docs/`) for troubleshooting and detailed explanation of all changes.

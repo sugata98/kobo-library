@@ -726,6 +726,6 @@ sequenceDiagram
 - **Maintained By**: Architecture Team
 - **Related Documents**:
   - `README.md`: Setup and deployment instructions
-  - `KOBO_DATABASE_STRUCTURE.md`: Database schema reference
-  - `highlights-fetch-service/SECURITY_IMPROVEMENTS.md`: Security implementation details
-  - `highlights-fetch-service/DEPENDENCY_MANAGEMENT.md`: Dependency versioning strategy
+  - `docs/KOBO_DATABASE_STRUCTURE.md`: Database schema reference
+  - `docs/SECURITY_IMPROVEMENTS.md`: Security implementation details
+  - `docs/DEPENDENCY_MANAGEMENT.md`: Dependency versioning strategy
