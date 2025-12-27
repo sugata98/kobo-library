@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Response, Query
+from fastapi import APIRouter, HTTPException, Response, Query, Depends
 from fastapi.responses import StreamingResponse
 from app.services.b2 import b2_service, b2_covers_service
 from app.services.kobo import kobo_service
 from app.services.cover_service import cover_service
 from app.core.config import settings
+from app.core.auth import require_auth
 import os
 import logging
 import urllib.parse
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/sync")
-def sync_data():
+def sync_data(username: str = Depends(require_auth)):
     try:
         local_path = settings.LOCAL_DB_PATH
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -47,7 +48,8 @@ def sync_data():
 def get_books(page: int = Query(1, ge=1, description="Page number (1-indexed)"), 
               page_size: int = Query(10, ge=1, le=100, description="Number of books per page"),
               search: str = Query(None, description="Search query for title or author"),
-              type: str = Query(None, description="Filter by content type: 'book', 'article', 'pdf', 'notebook', 'other'")):
+              type: str = Query(None, description="Filter by content type: 'book', 'article', 'pdf', 'notebook', 'other'"),
+              username: str = Depends(require_auth)):
     # Auto-sync if database doesn't exist
     if not os.path.exists(settings.LOCAL_DB_PATH):
         logger.info("Database not found, attempting auto-sync...")
@@ -101,7 +103,7 @@ def get_books(page: int = Query(1, ge=1, description="Page number (1-indexed)"),
 # Otherwise FastAPI will match the generic route first
 
 @router.get("/books/{book_id:path}/highlights")
-def get_book_highlights(book_id: str):
+def get_book_highlights(book_id: str, username: str = Depends(require_auth)):
     if not os.path.exists(settings.LOCAL_DB_PATH):
         raise HTTPException(status_code=404, detail="Database not found. Please sync first.")
     
@@ -118,7 +120,7 @@ def get_book_highlights(book_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/books/{book_id:path}/markups")
-def get_book_markups(book_id: str):
+def get_book_markups(book_id: str, username: str = Depends(require_auth)):
     if not os.path.exists(settings.LOCAL_DB_PATH):
         raise HTTPException(status_code=404, detail="Database not found. Please sync first.")
     
@@ -259,7 +261,7 @@ def get_book_cover(
     )
 
 @router.get("/books/{book_id:path}")
-def get_book_details(book_id: str):
+def get_book_details(book_id: str, username: str = Depends(require_auth)):
     if not os.path.exists(settings.LOCAL_DB_PATH):
         raise HTTPException(status_code=404, detail="Database not found. Please sync first.")
     
@@ -281,7 +283,7 @@ def get_book_details(book_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/markup/{markup_id}/svg")
-def get_markup_svg(markup_id: str):
+def get_markup_svg(markup_id: str, username: str = Depends(require_auth)):
     # Based on logs, the path is 'kobo/markups/{markup_id}.svg'
     possible_paths = [
         f"kobo/markups/{markup_id}.svg",
@@ -302,7 +304,7 @@ def get_markup_svg(markup_id: str):
     raise HTTPException(status_code=404, detail="SVG file not found in B2")
 
 @router.get("/markup/{markup_id}/jpg")
-def get_markup_jpg(markup_id: str):
+def get_markup_jpg(markup_id: str, username: str = Depends(require_auth)):
     # The JPG file should have the same ID as the SVG
     # Based on leldr's tool, they match by BookmarkID
     possible_paths = [

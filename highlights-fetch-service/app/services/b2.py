@@ -119,7 +119,7 @@ class B2Service:
 # Main B2 service for KoboSync bucket (database and markups)
 b2_service = B2Service(
     key_id=settings.B2_APPLICATION_KEY_ID,
-    app_key=settings.B2_APPLICATION_KEY,
+    app_key=settings.B2_APPLICATION_KEY.get_secret_value(),
     bucket_name=settings.B2_BUCKET_NAME,
     service_name="KoboSync"
 )
@@ -128,7 +128,7 @@ b2_service = B2Service(
 # Falls back to main bucket if covers-specific credentials not provided
 b2_covers_service = B2Service(
     key_id=settings.B2_COVERS_APPLICATION_KEY_ID or settings.B2_APPLICATION_KEY_ID,
-    app_key=settings.B2_COVERS_APPLICATION_KEY or settings.B2_APPLICATION_KEY,
+    app_key=(settings.B2_COVERS_APPLICATION_KEY.get_secret_value() if settings.B2_COVERS_APPLICATION_KEY else settings.B2_APPLICATION_KEY.get_secret_value()),
     bucket_name=settings.B2_COVERS_BUCKET_NAME or settings.B2_BUCKET_NAME,
     service_name="Covers Cache"
 )
