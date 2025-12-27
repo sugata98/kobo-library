@@ -46,7 +46,8 @@ def sync_data():
 @router.get("/books")
 def get_books(page: int = Query(1, ge=1, description="Page number (1-indexed)"), 
               page_size: int = Query(10, ge=1, le=100, description="Number of books per page"),
-              search: str = Query(None, description="Search query for title or author")):
+              search: str = Query(None, description="Search query for title or author"),
+              type: str = Query(None, description="Filter by content type: 'book', 'article', 'pdf', 'notebook', 'other'")):
     # Auto-sync if database doesn't exist
     if not os.path.exists(settings.LOCAL_DB_PATH):
         logger.info("Database not found, attempting auto-sync...")
@@ -76,12 +77,12 @@ def get_books(page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     
     try:
         offset = (page - 1) * page_size
-        books = kobo_service.get_books(limit=page_size, offset=offset, search=search)
-        # Get total count of matching books (with optional search filter)
-        total_books = kobo_service.get_total_books(search=search)
+        books = kobo_service.get_books(limit=page_size, offset=offset, search=search, content_type=type)
+        # Get total count of matching books (with optional search filter and content type)
+        total_books = kobo_service.get_total_books(search=search, content_type=type)
         total_pages = (total_books + page_size - 1) // page_size if total_books > 0 else 1
         
-        logger.info(f"Retrieved {len(books)} books (page {page}, total: {total_books})")
+        logger.info(f"Retrieved {len(books)} items (type={type}, page {page}, total: {total_books})")
         
         return {
             "books": books,
