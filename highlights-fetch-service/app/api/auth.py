@@ -43,15 +43,23 @@ async def login(login_data: LoginRequest, response: Response):
     )
     
     # Set httpOnly cookie for browser
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        expires=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax",
-        secure=False,  # Set to True in production with HTTPS
-    )
+    # For subdomains (www.readr.space + api.readr.space), set domain to parent domain
+    # This allows the cookie to be shared across all *.readr.space subdomains
+    cookie_kwargs = {
+        "key": "access_token",
+        "value": access_token,
+        "httponly": True,
+        "max_age": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "expires": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "samesite": settings.COOKIE_SAMESITE,
+        "secure": settings.COOKIE_SECURE,
+    }
+    
+    # Only set domain if configured (for subdomain sharing)
+    if settings.COOKIE_DOMAIN:
+        cookie_kwargs["domain"] = settings.COOKIE_DOMAIN
+    
+    response.set_cookie(**cookie_kwargs)
     
     logger.info(f"User {login_data.username} logged in successfully")
     

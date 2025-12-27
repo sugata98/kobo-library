@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days (recommended default), configurable via env, max: 43200 (30 days)
     
+    # Cookie settings
+    COOKIE_SECURE: bool = False  # Set to True for production (HTTPS)
+    COOKIE_SAMESITE: str = "lax"  # Options: "lax", "none", "strict"
+    COOKIE_DOMAIN: Optional[str] = None  # Set to parent domain (e.g., ".readr.space") to share across subdomains
+    
     @field_validator('JWT_SECRET_KEY')
     @classmethod
     def validate_jwt_secret_key_length(cls, v: SecretStr) -> SecretStr:
