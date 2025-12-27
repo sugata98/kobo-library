@@ -46,13 +46,13 @@ function MarkupImage({ markupId }: { markupId: string }) {
   };
 
   return (
-    <div className="border border-gray-200 p-2 rounded bg-white dark:bg-gray-900 relative w-full">
+    <div className="border border-border p-2 rounded bg-card relative w-full">
       {!showFallback && (
         <div className="relative min-h-[200px]">
           {/* Loader - stays in background, gets covered by JPG when it streams in */}
           {!jpgLoaded && !jpgError && (
-            <div className="absolute inset-0 w-full min-h-[200px] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded flex items-center justify-center z-0">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400"></div>
+            <div className="absolute inset-0 w-full min-h-[200px] bg-gradient-to-br from-muted to-muted/80 animate-pulse rounded flex items-center justify-center z-0">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/30 border-t-primary"></div>
             </div>
           )}
 
@@ -83,7 +83,7 @@ function MarkupImage({ markupId }: { markupId: string }) {
 
       {/* Fallback message */}
       {showFallback && (
-        <div className="text-xs text-gray-400 text-center p-4">
+        <div className="text-xs text-muted-foreground text-center p-4">
           Images not found in B2.
           <br />
           (ID: {markupId})
@@ -150,14 +150,11 @@ export default function BookDetails({
   }, [id]);
 
   if (loading) return <div className="p-8">Loading details...</div>;
-  if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
+  if (error) return <div className="p-8 text-destructive">Error: {error}</div>;
 
   return (
-    <div className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <Link
-        href="/"
-        className="text-blue-500 hover:underline mb-4 inline-block"
-      >
+    <div className="min-h-screen p-8 bg-background text-foreground">
+      <Link href="/" className="text-primary hover:underline mb-4 inline-block">
         &larr; Back to Library
       </Link>
 
@@ -168,7 +165,7 @@ export default function BookDetails({
             author={bookInfo.Author}
             isbn={bookInfo.ISBN}
             imageUrl={bookInfo.ImageUrl}
-            className="relative w-32 h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden rounded-lg shadow-md"
+            className="relative w-32 h-48 bg-gradient-to-br from-muted to-muted/80 overflow-hidden rounded-lg shadow-md"
             iconSize="w-12 h-12"
           />
         )}
@@ -177,18 +174,18 @@ export default function BookDetails({
             {bookInfo?.Title || `Book ID: ${decodeURIComponent(id)}`}
           </h1>
           {bookInfo?.Author && (
-            <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">
+            <p className="text-lg text-muted-foreground mb-2">
               by {bookInfo.Author}
             </p>
           )}
           {bookInfo && (
             <div className="space-y-1">
               {bookInfo.ISBN && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   ISBN: {bookInfo.ISBN}
                 </p>
               )}
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Progress: {Math.round(bookInfo.___PercentRead || 0)}%
               </p>
             </div>
@@ -203,7 +200,7 @@ export default function BookDetails({
           </h2>
           <div className="space-y-6">
             {highlights.length === 0 ? (
-              <p className="text-gray-500">No highlights found.</p>
+              <p className="text-muted-foreground">No highlights found.</p>
             ) : (
               (() => {
                 const groupedHighlights = groupByChapter(highlights);
@@ -211,20 +208,20 @@ export default function BookDetails({
                   ([chapter, items]) => (
                     <div key={chapter} className="space-y-3">
                       {/* Chapter header */}
-                      <div className="sticky top-0 bg-gray-50 dark:bg-gray-900 py-2 z-50">
-                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                      <div className="sticky top-0 bg-background py-2 z-50">
+                        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
                           {chapter}
                         </h3>
-                        <div className="h-px bg-gradient-to-r from-blue-500 to-transparent mt-1"></div>
+                        <div className="h-px bg-gradient-to-r from-primary to-transparent mt-1"></div>
                       </div>
 
                       {/* Chapter items */}
                       {items.map((h: any, idx: number) => (
                         <div
                           key={h.BookmarkID}
-                          className="bg-white dark:bg-gray-800 p-4 rounded shadow"
+                          className="bg-card p-4 rounded shadow border border-border"
                         >
-                          <blockquote className="border-l-4 border-yellow-400 pl-4 italic mb-3">
+                          <blockquote className="border-l-4 border-primary pl-4 italic mb-3">
                             &ldquo;{h.Text}&rdquo;
                           </blockquote>
 
@@ -236,7 +233,7 @@ export default function BookDetails({
                             className="mb-2"
                           />
 
-                          <div className="text-xs text-gray-400 mt-2 text-right">
+                          <div className="text-xs text-muted-foreground mt-2 text-right">
                             {new Date(h.DateCreated).toLocaleDateString()}
                           </div>
                         </div>
@@ -255,7 +252,7 @@ export default function BookDetails({
           </h2>
           <div className="space-y-6">
             {markups.length === 0 ? (
-              <p className="text-gray-500">No markups found.</p>
+              <p className="text-muted-foreground">No markups found.</p>
             ) : (
               (() => {
                 const groupedMarkups = groupByChapter(markups);
@@ -263,18 +260,18 @@ export default function BookDetails({
                   ([chapter, items]) => (
                     <div key={chapter} className="space-y-3">
                       {/* Chapter header */}
-                      <div className="sticky top-0 bg-gray-50 dark:bg-gray-900 py-2 z-50">
-                        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                      <div className="sticky top-0 bg-background py-2 z-50">
+                        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
                           {chapter}
                         </h3>
-                        <div className="h-px bg-gradient-to-r from-purple-500 to-transparent mt-1"></div>
+                        <div className="h-px bg-gradient-to-r from-accent to-transparent mt-1"></div>
                       </div>
 
                       {/* Chapter items */}
                       {items.map((m: any, idx: number) => (
                         <div
                           key={m.BookmarkID}
-                          className="bg-white dark:bg-gray-800 p-4 rounded shadow"
+                          className="bg-card p-4 rounded shadow border border-border"
                         >
                           <LocationIndicator
                             index={idx + 1}
@@ -286,7 +283,7 @@ export default function BookDetails({
 
                           <MarkupImage markupId={m.BookmarkID} />
 
-                          <div className="text-xs text-gray-400 mt-2 text-right">
+                          <div className="text-xs text-muted-foreground mt-2 text-right">
                             {new Date(m.DateCreated).toLocaleDateString()}
                           </div>
                         </div>

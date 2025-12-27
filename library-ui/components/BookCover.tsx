@@ -19,13 +19,15 @@ export default function BookCover({
   author,
   isbn,
   imageUrl,
-  className = "relative w-full aspect-[2/3] max-h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 overflow-hidden",
+  className = "relative w-full aspect-[2/3] max-h-48 bg-gradient-to-br from-muted to-muted/80 overflow-hidden",
   iconSize = "w-16 h-16",
   showPlaceholderText = false,
   imageClassName = "w-full h-full object-cover",
 }: BookCoverProps) {
   // Get cover URL directly (synchronous, no promises needed)
-  const coverUrl = title ? getBookCoverUrl(title, author, isbn, imageUrl) : null;
+  const coverUrl = title
+    ? getBookCoverUrl(title, author, isbn, imageUrl)
+    : null;
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -56,7 +58,7 @@ export default function BookCover({
       )}
       {/* Placeholder when cover image fails to load or is loading */}
       {showPlaceholder && (
-        <div className="cover-placeholder absolute inset-0 flex items-center justify-center text-gray-400 dark:text-gray-500">
+        <div className="cover-placeholder absolute inset-0 flex items-center justify-center text-muted-foreground">
           <div className="text-center">
             <svg
               className={`${iconSize} mx-auto ${
