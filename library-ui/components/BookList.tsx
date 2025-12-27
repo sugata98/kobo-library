@@ -264,12 +264,6 @@ export default function BookList({
               </PaginationItem>
             </PaginationContent>
           </Pagination>
-
-          {/* Book count info */}
-          <div className="text-center text-sm text-muted-foreground">
-            Page {pagination.page} of {pagination.total_pages} (
-            {pagination.total} books total)
-          </div>
         </div>
       )}
     </>

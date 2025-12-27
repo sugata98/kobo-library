@@ -13,11 +13,34 @@ import {
 } from "@/components/ui/input-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BRANDING } from "@/lib/branding";
+import { getBooks } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"book" | "article">("book");
+  const [bookCount, setBookCount] = useState<number>(0);
+  const [articleCount, setArticleCount] = useState<number>(0);
+
+  // Fetch counts for books and articles
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        // Fetch book count
+        const bookResponse = await getBooks(1, 1, undefined, "book");
+        setBookCount(bookResponse.pagination?.total || 0);
+
+        // Fetch article count
+        const articleResponse = await getBooks(1, 1, undefined, "article");
+        setArticleCount(articleResponse.pagination?.total || 0);
+      } catch (error) {
+        console.error("Failed to fetch counts:", error);
+      }
+    };
+
+    fetchCounts();
+  }, []);
 
   // Debounce search query
   useEffect(() => {
@@ -82,10 +105,16 @@ export default function Home() {
               <TabsTrigger value="book" className="gap-2">
                 <BookOpen className="h-4 w-4" />
                 Books
+                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                  {bookCount}
+                </Badge>
               </TabsTrigger>
               <TabsTrigger value="article" className="gap-2">
                 <FileText className="h-4 w-4" />
                 Articles
+                <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                  {articleCount}
+                </Badge>
               </TabsTrigger>
             </TabsList>
 

@@ -9,11 +9,10 @@ export const BRANDING = {
   domain: "readr.space",
 
   // Taglines & Descriptions
-  tagline: "Your personal space to revisit and connect reading highlights",
+  tagline: "Where your reading highlights live",
   description:
-    "Readr is a personal space to revisit and connect your reading highlights and annotations. Sync, organize, and reflect on insights from your reading journey.",
-  shortDescription:
-    "Revisit and connect your reading highlights and annotations",
+    "Readr is a personal space where your reading highlights and annotations live. Revisit, connect, and reflect on insights from your reading journey.",
+  shortDescription: "A home for your reading highlights and annotations",
 
   // Meta
   keywords: [
@@ -35,10 +34,8 @@ export const BRANDING = {
   // UI Copy
   ui: {
     backToLibrary: "← Back to Library",
-    searchPlaceholder: "Search books...",
-    loadingBooks: "Loading books...",
-    loadingDetails: "Loading details...",
-    noHighlights: "No highlights found.",
-    noMarkups: "No markups found.",
+    searchPlaceholder: "Search by title or author...",
+    noHighlights: "No highlights yet.",
+    noMarkups: "No markups yet.",
   },
 } as const;
