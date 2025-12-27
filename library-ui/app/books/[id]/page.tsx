@@ -6,6 +6,20 @@ import { getBookHighlights, getBookMarkups, getBookDetails } from "@/lib/api";
 import Link from "next/link";
 import BookCover from "@/components/BookCover";
 import LocationIndicator from "@/components/LocationIndicator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { Progress } from "@/components/ui/progress";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Highlighter, ImageIcon, ArrowLeft, BookOpen } from "lucide-react";
 import { BRANDING } from "@/lib/branding";
 
 // Use the backend proxy endpoints
@@ -53,7 +67,7 @@ function MarkupImage({ markupId }: { markupId: string }) {
           {/* Loader - stays in background, gets covered by JPG when it streams in */}
           {!jpgLoaded && !jpgError && (
             <div className="absolute inset-0 w-full min-h-[200px] bg-gradient-to-br from-muted to-muted/80 animate-pulse rounded flex items-center justify-center z-0">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/30 border-t-primary"></div>
+              <Spinner className="size-8 text-primary" />
             </div>
           )}
 
@@ -150,25 +164,85 @@ export default function BookDetails({
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="p-8">{BRANDING.ui.loadingDetails}</div>;
   if (error) return <div className="p-8 text-destructive">Error: {error}</div>;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen p-8 bg-background text-foreground">
+        <Skeleton className="h-6 w-32 mb-4" />
+
+        <div className="flex items-start gap-6 mb-6">
+          {/* Book cover skeleton */}
+          <Skeleton className="w-48 aspect-[2/3] rounded-lg" />
+
+          {/* Book info skeleton */}
+          <div className="flex-1 space-y-4">
+            <Skeleton className="h-10 w-3/4" />
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-4 w-1/4" />
+            <div className="space-y-2 mt-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Highlights section skeleton */}
+          <div>
+            <Skeleton className="h-8 w-48 mb-4" />
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="p-4 border border-border rounded-lg space-y-3"
+                >
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-3 w-32 mt-2" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Markups section skeleton */}
+          <div>
+            <Skeleton className="h-8 w-48 mb-4" />
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-64 rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen p-8 bg-background text-foreground">
-      <Link href="/" className="text-primary hover:underline mb-4 inline-block">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-2 h-9 px-3 mb-4 -ml-2 rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+      >
         {BRANDING.ui.backToLibrary}
       </Link>
 
       <div className="flex items-start gap-6 mb-6">
         {bookInfo && (
-          <BookCover
-            title={bookInfo.Title}
-            author={bookInfo.Author}
-            isbn={bookInfo.ISBN}
-            imageUrl={bookInfo.ImageUrl}
-            className="relative w-32 h-48 bg-gradient-to-br from-muted to-muted/80 overflow-hidden rounded-lg shadow-md"
-            iconSize="w-12 h-12"
-          />
+          <div className="relative">
+            <BookCover
+              title={bookInfo.Title}
+              author={bookInfo.Author}
+              isbn={bookInfo.ISBN}
+              imageUrl={bookInfo.ImageUrl}
+              className="relative w-32 h-48 bg-gradient-to-br from-muted to-muted/80 overflow-hidden rounded-lg shadow-xl hover:shadow-2xl transition-shadow duration-300"
+              iconSize="w-12 h-12"
+            />
+            {/* Gradient glow effect underneath */}
+            <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/20 via-primary/10 to-transparent blur-xl translate-y-4 rounded-lg"></div>
+          </div>
         )}
         <div>
           <h1 className="text-2xl font-bold mb-2">
@@ -180,15 +254,26 @@ export default function BookDetails({
             </p>
           )}
           {bookInfo && (
-            <div className="space-y-1">
+            <div className="space-y-3">
               {bookInfo.ISBN && (
                 <p className="text-sm text-muted-foreground">
                   ISBN: {bookInfo.ISBN}
                 </p>
               )}
-              <p className="text-sm text-muted-foreground">
-                Progress: {Math.round(bookInfo.___PercentRead || 0)}%
-              </p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Reading Progress
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {Math.round(bookInfo.___PercentRead || 0)}%
+                  </span>
+                </div>
+                <Progress
+                  value={Math.round(bookInfo.___PercentRead || 0)}
+                  className="h-2"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -201,7 +286,17 @@ export default function BookDetails({
           </h2>
           <div className="space-y-6">
             {highlights.length === 0 ? (
-              <p className="text-muted-foreground">{BRANDING.ui.noHighlights}</p>
+              <Empty className="border border-dashed">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Highlighter />
+                  </EmptyMedia>
+                  <EmptyTitle>No Highlights Yet</EmptyTitle>
+                  <EmptyDescription>
+                    {BRANDING.ui.noHighlights}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             ) : (
               (() => {
                 const groupedHighlights = groupByChapter(highlights);
@@ -209,35 +304,50 @@ export default function BookDetails({
                   ([chapter, items]) => (
                     <div key={chapter} className="space-y-3">
                       {/* Chapter header */}
-                      <div className="sticky top-0 bg-background py-2 z-50">
-                        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-                          {chapter}
-                        </h3>
-                        <div className="h-px bg-gradient-to-r from-primary to-transparent mt-1"></div>
+                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-3 px-4 -mx-4 z-50 border-b border-border/40 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-primary shrink-0" />
+                          <h3 className="text-sm font-semibold text-foreground tracking-wide flex-1">
+                            {chapter}
+                          </h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {items.length}
+                          </Badge>
+                        </div>
                       </div>
 
                       {/* Chapter items */}
                       {items.map((h: any, idx: number) => (
-                        <div
+                        <Card
                           key={h.BookmarkID}
-                          className="bg-card p-4 rounded shadow border border-border"
+                          className="hover:shadow-lg transition-shadow"
                         >
-                          <blockquote className="border-l-4 border-primary pl-4 italic mb-3">
-                            &ldquo;{h.Text}&rdquo;
-                          </blockquote>
+                          <CardContent className="pt-6">
+                            <div className="flex items-center justify-between gap-4 mb-3">
+                              <LocationIndicator
+                                index={idx + 1}
+                                total={items.length}
+                                chapterName={null}
+                                chapterProgress={h.TrueChapterProgress}
+                                className="flex-1"
+                              />
+                              <div className="text-xs text-muted-foreground shrink-0">
+                                {new Date(h.DateCreated).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  }
+                                )}
+                              </div>
+                            </div>
 
-                          <LocationIndicator
-                            index={idx + 1}
-                            total={items.length}
-                            chapterName={null}
-                            chapterProgress={h.TrueChapterProgress}
-                            className="mb-2"
-                          />
-
-                          <div className="text-xs text-muted-foreground mt-2 text-right">
-                            {new Date(h.DateCreated).toLocaleDateString()}
-                          </div>
-                        </div>
+                            <blockquote className="border-l-4 border-primary pl-4 italic">
+                              &ldquo;{h.Text}&rdquo;
+                            </blockquote>
+                          </CardContent>
+                        </Card>
                       ))}
                     </div>
                   )
@@ -253,7 +363,15 @@ export default function BookDetails({
           </h2>
           <div className="space-y-6">
             {markups.length === 0 ? (
-              <p className="text-muted-foreground">{BRANDING.ui.noMarkups}</p>
+              <Empty className="border border-dashed">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <ImageIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>No Markups Yet</EmptyTitle>
+                  <EmptyDescription>{BRANDING.ui.noMarkups}</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             ) : (
               (() => {
                 const groupedMarkups = groupByChapter(markups);
@@ -261,33 +379,48 @@ export default function BookDetails({
                   ([chapter, items]) => (
                     <div key={chapter} className="space-y-3">
                       {/* Chapter header */}
-                      <div className="sticky top-0 bg-background py-2 z-50">
-                        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-                          {chapter}
-                        </h3>
-                        <div className="h-px bg-gradient-to-r from-accent to-transparent mt-1"></div>
+                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-3 px-4 -mx-4 z-50 border-b border-border/40 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-primary shrink-0" />
+                          <h3 className="text-sm font-semibold text-foreground tracking-wide flex-1">
+                            {chapter}
+                          </h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {items.length}
+                          </Badge>
+                        </div>
                       </div>
 
                       {/* Chapter items */}
                       {items.map((m: any, idx: number) => (
-                        <div
+                        <Card
                           key={m.BookmarkID}
-                          className="bg-card p-4 rounded shadow border border-border"
+                          className="hover:shadow-lg transition-shadow"
                         >
-                          <LocationIndicator
-                            index={idx + 1}
-                            total={items.length}
-                            chapterName={null}
-                            chapterProgress={m.TrueChapterProgress}
-                            className="mb-3"
-                          />
+                          <CardContent className="pt-6">
+                            <div className="flex items-center justify-between gap-4 mb-3">
+                              <LocationIndicator
+                                index={idx + 1}
+                                total={items.length}
+                                chapterName={null}
+                                chapterProgress={m.TrueChapterProgress}
+                                className="flex-1"
+                              />
+                              <div className="text-xs text-muted-foreground shrink-0">
+                                {new Date(m.DateCreated).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  }
+                                )}
+                              </div>
+                            </div>
 
-                          <MarkupImage markupId={m.BookmarkID} />
-
-                          <div className="text-xs text-muted-foreground mt-2 text-right">
-                            {new Date(m.DateCreated).toLocaleDateString()}
-                          </div>
-                        </div>
+                            <MarkupImage markupId={m.BookmarkID} />
+                          </CardContent>
+                        </Card>
                       ))}
                     </div>
                   )

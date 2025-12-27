@@ -6,6 +6,17 @@ import { getBooks } from "@/lib/api";
 import Link from "next/link";
 import BookCover from "./BookCover";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { BRANDING } from "@/lib/branding";
 
 export default function BookList({
@@ -85,7 +96,6 @@ export default function BookList({
     }
   }, [searchQuery]);
 
-  if (loading && !searchQuery) return <div>{BRANDING.ui.loadingBooks}</div>;
   if (error) return <div className="text-destructive">Error: {error}</div>;
 
   // Use server-filtered results directly when searching, paginated results otherwise
@@ -98,15 +108,31 @@ export default function BookList({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Skeleton loader component
+  const BookSkeleton = () => (
+    <Card className="overflow-hidden flex flex-col h-full">
+      <Skeleton className="w-full aspect-[2/3]" />
+      <CardContent className="p-0 pt-4 px-4 pb-4 flex-1 flex flex-col">
+        <Skeleton className="h-6 w-full mb-2" />
+        <Skeleton className="h-6 w-3/4 mb-1" />
+        <Skeleton className="h-4 w-1/2 mb-3" />
+        <div className="space-y-2 mt-auto">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-1.5 w-full" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <>
-      {(loading || searchLoading) && (
-        <div className="text-center py-8 text-muted-foreground">
-          {BRANDING.ui.loadingBooks}
-        </div>
-      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {displayBooks.map((book) => (
+        {(loading || searchLoading) &&
+          Array.from({ length: pageSize }).map((_, index) => (
+            <BookSkeleton key={`skeleton-${index}`} />
+          ))}
+
+        {!(loading || searchLoading) && displayBooks.map((book) => (
           <Link
             href={`/books/${encodeURIComponent(book.ContentID)}`}
             key={book.ContentID}
@@ -132,19 +158,17 @@ export default function BookList({
                 <p className="text-sm text-muted-foreground mb-3 line-clamp-1">
                   {book.Author || "Unknown Author"}
                 </p>
-                <div className="flex items-center justify-between mt-auto">
-                  <div className="text-xs text-muted-foreground">
-                    Progress: {Math.round(book.___PercentRead || 0)}%
+                <div className="space-y-2 mt-auto">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="font-medium text-foreground">
+                      {Math.round(book.___PercentRead || 0)}%
+                    </span>
                   </div>
-                  {/* Progress bar */}
-                  <div className="flex-1 ml-3 h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all duration-300"
-                      style={{
-                        width: `${Math.round(book.___PercentRead || 0)}%`,
-                      }}
-                    />
-                  </div>
+                  <Progress
+                    value={Math.round(book.___PercentRead || 0)}
+                    className="h-1.5"
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -153,28 +177,92 @@ export default function BookList({
       </div>
 
       {/* Pagination Controls - Only show when not searching */}
-      {!searchQuery && !loading && pagination.total_pages > 1 && (
-        <div className="mt-8 flex justify-center items-center gap-2">
-          <button
-            onClick={() => handlePageChange(pagination.page - 1)}
-            disabled={pagination.page === 1}
-            className="px-4 py-2 border border-input rounded-lg bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Previous
-          </button>
+      {!searchQuery && !(loading || searchLoading) && pagination.total_pages > 1 && (
+        <div className="mt-8 space-y-2">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                />
+              </PaginationItem>
 
-          <span className="px-4 py-2 text-sm text-muted-foreground">
+              {/* First page */}
+              {pagination.page > 2 && (
+                <PaginationItem>
+                  <PaginationLink onClick={() => handlePageChange(1)}>
+                    1
+                  </PaginationLink>
+                </PaginationItem>
+              )}
+
+              {/* Ellipsis before current */}
+              {pagination.page > 3 && (
+                <PaginationItem>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              )}
+
+              {/* Previous page */}
+              {pagination.page > 1 && (
+                <PaginationItem>
+                  <PaginationLink
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                  >
+                    {pagination.page - 1}
+                  </PaginationLink>
+                </PaginationItem>
+              )}
+
+              {/* Current page */}
+              <PaginationItem>
+                <PaginationLink isActive>{pagination.page}</PaginationLink>
+              </PaginationItem>
+
+              {/* Next page */}
+              {pagination.page < pagination.total_pages && (
+                <PaginationItem>
+                  <PaginationLink
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                  >
+                    {pagination.page + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              )}
+
+              {/* Ellipsis after current */}
+              {pagination.page < pagination.total_pages - 2 && (
+                <PaginationItem>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              )}
+
+              {/* Last page */}
+              {pagination.page < pagination.total_pages - 1 && (
+                <PaginationItem>
+                  <PaginationLink
+                    onClick={() => handlePageChange(pagination.total_pages)}
+                  >
+                    {pagination.total_pages}
+                  </PaginationLink>
+                </PaginationItem>
+              )}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.total_pages}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+
+          {/* Book count info */}
+          <div className="text-center text-sm text-muted-foreground">
             Page {pagination.page} of {pagination.total_pages} (
-            {pagination.total} books)
-          </span>
-
-          <button
-            onClick={() => handlePageChange(pagination.page + 1)}
-            disabled={pagination.page >= pagination.total_pages}
-            className="px-4 py-2 border border-input rounded-lg bg-background text-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Next
-          </button>
+            {pagination.total} books total)
+          </div>
         </div>
       )}
     </>
