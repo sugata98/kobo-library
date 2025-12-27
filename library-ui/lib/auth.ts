@@ -8,14 +8,31 @@ export interface AuthStatus {
 
 /**
  * Logout the user by calling the logout endpoint.
+ *
+ * @returns Promise<boolean> - true if logout was successful, false otherwise
  */
-export async function logout(): Promise<void> {
+export async function logout(): Promise<boolean> {
   try {
-    await fetch(`${API_BASE_URL}/auth/logout`, {
+    const response = await fetch(`${API_BASE_URL}/auth/logout`, {
       method: "POST",
       credentials: "include",
     });
+
+    if (response.ok) {
+      console.log("Logout successful");
+      return true;
+    } else {
+      // Log detailed error information for diagnostics
+      const errorText = await response.text().catch(() => "Unknown error");
+      console.error(
+        `Logout failed: ${response.status} ${response.statusText}`,
+        errorText
+      );
+      return false;
+    }
   } catch (error) {
+    // Network error or other exception
     console.error("Logout failed:", error);
+    return false;
   }
 }

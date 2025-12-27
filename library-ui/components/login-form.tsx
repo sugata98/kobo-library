@@ -41,8 +41,8 @@ export function LoginForm() {
       }
 
       // Login successful, redirect to home
+      // Next.js App Router automatically refreshes on navigation
       router.push("/");
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

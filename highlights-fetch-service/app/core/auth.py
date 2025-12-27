@@ -31,13 +31,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY.get_secret_value(), algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
 def decode_access_token(token: str) -> Optional[dict]:
     """Decode and verify a JWT token."""
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY.get_secret_value(), algorithms=[settings.JWT_ALGORITHM])
         return payload
     except JWTError as e:
         logger.error(f"JWT decode error: {e}")
@@ -46,13 +46,13 @@ def decode_access_token(token: str) -> Optional[dict]:
 def authenticate_user(username: str, password: str) -> bool:
     """Authenticate a user with username and password."""
     # For single-user mode, compare against environment variables
-    if username != settings.AUTH_USERNAME:
+    if username != settings.AUTH_USERNAME.get_secret_value():
         return False
     
     # Simple password comparison for personal use
     # This is acceptable for a single-user personal app
     # For multi-user production, you'd hash passwords and use verify_password()
-    return password == settings.AUTH_PASSWORD
+    return password == settings.AUTH_PASSWORD.get_secret_value()
 
 def get_current_user_from_cookie(request: Request) -> Optional[str]:
     """Extract and validate user from cookie."""
