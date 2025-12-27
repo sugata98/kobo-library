@@ -482,14 +482,17 @@ sequenceDiagram
 
 ### 5.3 Performance
 
+- **Multi-Worker Backend**: Configured with 4 workers, enabling 4× concurrent request handling for I/O-bound operations (markup JPGs, B2 downloads, external API calls)
 - **Caching Strategy**: Multi-layer caching (B2 cache → browser cache) reduces external API calls
 - **Streaming**: Large markup JPGs are streamed in chunks to reduce memory usage
 - **Auto-Sync**: Database is downloaded on-demand, reducing unnecessary B2 operations
 - **Progressive Loading**: Markups load JPG first, then overlay SVG for better UX
+- **Lazy Loading**: Frontend implements lazy loading for book covers and markups, reducing initial bandwidth by 80-90%
 
 ### 5.4 Scalability (Current Context)
 
-- **Stateless Backend**: FastAPI workers can scale horizontally (though currently single-worker)
+- **Multi-Worker Backend**: Currently running 4 workers, providing good concurrent request handling (4× improvement over single-worker setup)
+- **Stateless Backend**: FastAPI workers can scale horizontally
 - **External Storage**: B2 handles file storage, no database server needed
 - **Content-Type Filtering**: Efficient SQL queries with proper indexing support
 - **Pagination**: All list endpoints support pagination to handle large libraries
@@ -515,7 +518,7 @@ sequenceDiagram
 
 - **SQLite Limitations**: Local SQLite file doesn't scale to multiple backend instances (each needs its own copy)
 - **No Database Replication**: If backend restarts, database must be re-downloaded (though auto-sync mitigates this)
-- **Single-Worker Backend**: Render deployment uses `--workers 1`, limiting concurrent request handling
+- **Multi-Worker Backend**: Render deployment uses `--workers 4`, providing good concurrent request handling for I/O-bound workloads (markup JPGs, B2 downloads, external API calls)
 - **In-Memory Auth Cache**: Frontend middleware cache is in-memory (lost on serverless function restart)
 
 ### 6.3 Maintenance Issues
@@ -619,12 +622,11 @@ sequenceDiagram
 
 #### 7.3.1 Horizontal Scaling (Backend)
 
-- **Current**: Single-worker FastAPI
-- **Proposal**:
-  - Increase workers: `--workers 4` (or use gunicorn with uvicorn workers)
+- **Future Enhancements**:
+  - For 1GB+ servers: Increase to `--workers 8` for higher concurrency (currently at 4 workers)
   - Use shared database cache (see 7.2.3)
   - Load balancer in front (Render already provides this)
-- **Benefit**: Handle more concurrent users
+- **Note**: 4-worker configuration is already implemented (see section 5.3 Performance)
 
 #### 7.3.2 Database Scaling
 

@@ -14,7 +14,7 @@ Implemented progressive/lazy loading for book cover images to improve initial pa
    - No delay for critical content
 
 2. **Remaining Images**: Lazy load with Intersection Observer
-   - Load when approaching viewport (300px margin)
+   - Load when approaching viewport (default: 200px margin, production uses 300px override)
    - Reduces initial bandwidth and server load
    - Smoother progressive reveal
 
@@ -28,13 +28,13 @@ New component that extends `BookCover` with lazy loading capabilities:
   title="Book Title"
   author="Author Name"
   priority={true}  // Load immediately
-  preloadMargin="300px"  // Start loading 300px before viewport
+  preloadMargin="200px"  // Start loading 200px before viewport (default)
 />
 ```
 
 **Props:**
 - `priority`: `true` for first 5 images, `false` for rest
-- `preloadMargin`: Distance before viewport to trigger loading (default: "200px")
+- `preloadMargin`: Distance before viewport to trigger loading (default: "200px", production uses "300px" override for smoother UX)
 
 #### `BookList.tsx`
 Updated to use `LazyBookCover` with index-based priority:
@@ -42,9 +42,11 @@ Updated to use `LazyBookCover` with index-based priority:
 ```tsx
 <LazyBookCover
   priority={index < 5}  // First 5 are priority
-  preloadMargin="300px"
+  preloadMargin="300px"  // Override default (200px) for smoother UX
 />
 ```
+
+**Note**: The default `preloadMargin` is `"200px"`, but `BookList.tsx` overrides it to `"300px"` for a smoother user experience, preloading images earlier as users scroll.
 
 ## Performance Benefits
 
@@ -76,16 +78,20 @@ Updated to use `LazyBookCover` with index-based priority:
 ### Configuration
 ```typescript
 {
-  rootMargin: '300px',  // Start loading 300px before visible
+  rootMargin: '200px',  // Default: Start loading 200px before visible
   threshold: 0.01       // Trigger at 1% visibility
 }
 ```
 
-### Why 300px preload margin?
-- **Smooth UX**: Images load before user sees them
-- **Balance**: Not too aggressive (bandwidth) or passive (delays)
-- **Scroll Speed**: Accounts for fast scrolling
-- **Typical Screen**: Covers ~1 screen height
+**Production Override**: `BookList.tsx` uses `preloadMargin="300px"` for earlier preloading.
+
+### Why 200px default, 300px recommended?
+- **Default (200px)**: Balanced for most use cases, good bandwidth efficiency
+- **Production Override (300px)**: Used in `BookList.tsx` for smoother UX
+  - **Smooth UX**: Images load before user sees them
+  - **Balance**: Not too aggressive (bandwidth) or passive (delays)
+  - **Scroll Speed**: Accounts for fast scrolling
+  - **Typical Screen**: Covers ~1 screen height
 
 ### Browser Support
 - **Modern Browsers**: Excellent (Chrome 51+, Firefox 55+, Safari 12.1+)
@@ -107,13 +113,15 @@ priority={index < 5}  // Change 5 to your preferred number
 
 ### Preload Margin
 ```tsx
-preloadMargin="300px"  // Adjust based on needs
+preloadMargin="200px"  // Default value
+// Or override for specific needs:
+preloadMargin="300px"  // Production override (used in BookList.tsx)
 ```
 
 **Options:**
 - `"100px"`: Conservative, loads late (saves bandwidth)
-- `"200px"`: Balanced, good for slow connections
-- `"300px"`: Aggressive, smoothest UX (current)
+- `"200px"`: **Default** - Balanced, good for slow connections
+- `"300px"`: **Production override** - Aggressive, smoothest UX (used in BookList.tsx)
 - `"500px"`: Very aggressive, preloads aggressively
 
 ## Advanced: Responsive Priority

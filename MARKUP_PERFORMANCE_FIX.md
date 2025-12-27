@@ -36,7 +36,7 @@ User opens book detail page with 20 markups
 **Impact**: Reduces memory usage, faster response start
 
 - Markup JPGs stream in 64KB chunks
-- Reduces memory per request from 1-2MB to ~20MB
+- Reduces memory per request from ~1-2MB (full image) to ~64KB (streaming buffer)
 - **Improvement**: Lower memory footprint, allows more workers
 
 ### 3. Frontend: Lazy Loading (NEW)
