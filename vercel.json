@@ -1,8 +1,9 @@
 {
-  "buildCommand": "npm install && npm run build",
-  "outputDirectory": ".next",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": "nextjs"
+  "buildCommand": "cd library-ui && npm run build",
+  "outputDirectory": "library-ui/.next",
+  "devCommand": "cd library-ui && npm run dev",
+  "installCommand": "cd library-ui && npm install",
+  "framework": "nextjs",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./library-ui"
 }
 
