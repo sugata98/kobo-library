@@ -83,7 +83,7 @@ function setCachedAuth(cacheKey: string, authenticated: boolean): void {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Skip middleware for login page and static assets
   if (
     request.nextUrl.pathname === "/login" ||
