@@ -28,7 +28,7 @@ export default function LazyBookCover({
   priority = false,
   preloadMargin = "200px",
 }: LazyBookCoverProps) {
-  const [shouldLoad, setShouldLoad] = useState(priority); // Load immediately if priority
+  const [shouldLoad, setShouldLoad] = useState(priority);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const imageRef = useRef<HTMLDivElement>(null);
@@ -40,20 +40,20 @@ export default function LazyBookCover({
 
   // Intersection Observer for lazy loading
   useEffect(() => {
-    if (priority || !imageRef.current) return; // Skip if priority image
+    if (priority || !imageRef.current) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             setShouldLoad(true);
-            observer.disconnect(); // Stop observing once loaded
+            observer.disconnect();
           }
         });
       },
       {
-        rootMargin: preloadMargin, // Start loading before image enters viewport
-        threshold: 0.01, // Trigger as soon as 1% is visible
+        rootMargin: preloadMargin,
+        threshold: 0.01,
       }
     );
 
@@ -79,14 +79,13 @@ export default function LazyBookCover({
     <div ref={imageRef} className={className}>
       {coverUrl && shouldLoad && (
         <img
-          key={`${title}-${author}-${isbn}-${coverUrl}`}
           src={coverUrl}
           alt={`${title} cover`}
           className={imageClassName}
           onLoad={handleImageLoad}
           onError={handleImageError}
           style={{ display: showPlaceholder ? "none" : "block" }}
-          loading={priority ? "eager" : "lazy"} // Native lazy loading as fallback
+          loading="eager" // We handle lazy loading ourselves with Intersection Observer
         />
       )}
       {/* Placeholder when cover image fails to load or is loading */}
@@ -117,4 +116,3 @@ export default function LazyBookCover({
     </div>
   );
 }
-

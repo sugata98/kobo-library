@@ -55,7 +55,12 @@ export default function BookList({
     (async () => {
       setLoading(true);
       try {
-        const response = await getBooks(currentPage, pageSize, undefined, contentType);
+        const response = await getBooks(
+          currentPage,
+          pageSize,
+          undefined,
+          contentType
+        );
 
         if (cancelled) return;
 
@@ -139,135 +144,138 @@ export default function BookList({
             <BookSkeleton key={`skeleton-${index}`} />
           ))}
 
-        {!(loading || searchLoading) && displayBooks.map((book, index) => (
-          <Link
-            href={`/books/${encodeURIComponent(book.ContentID)}`}
-            key={book.ContentID}
-          >
-            <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col h-full">
-              {/* Book Cover - Priority load first 5, lazy load rest */}
-              <LazyBookCover
-                title={book.Title}
-                author={book.Author}
-                isbn={book.ISBN}
-                imageUrl={book.ImageUrl}
-                className="relative w-full aspect-[2/3] bg-gradient-to-br from-muted to-muted/80 overflow-hidden"
-                iconSize="w-16 h-16"
-                showPlaceholderText={true}
-                imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                priority={index < 5} // Load first 5 immediately
-                preloadMargin="300px" // Start loading 300px before entering viewport
-              />
+        {!(loading || searchLoading) &&
+          displayBooks.map((book, index) => (
+            <Link
+              href={`/books/${encodeURIComponent(book.ContentID)}`}
+              key={book.ContentID}
+            >
+              <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col h-full">
+                {/* Book Cover - Priority load first 5, lazy load rest */}
+                <LazyBookCover
+                  title={book.Title}
+                  author={book.Author}
+                  isbn={book.ISBN}
+                  imageUrl={book.ImageUrl}
+                  className="relative w-full aspect-[2/3] bg-gradient-to-br from-muted to-muted/80 overflow-hidden"
+                  iconSize="w-16 h-16"
+                  showPlaceholderText={true}
+                  imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  priority={index < 5} // Load first 5 immediately
+                  preloadMargin="300px" // Start loading 300px before entering viewport
+                />
 
-              {/* Book Info */}
-              <CardContent className="p-0 pt-4 px-4 pb-4 flex-1 flex flex-col">
-                <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors min-h-[3.5rem]">
-                  {book.Title}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-1">
-                  {book.Author || "Unknown Author"}
-                </p>
-                <div className="space-y-2 mt-auto">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-medium text-foreground">
-                      {Math.round(book.___PercentRead || 0)}%
-                    </span>
+                {/* Book Info */}
+                <CardContent className="p-0 pt-4 px-4 pb-4 flex-1 flex flex-col">
+                  <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors min-h-[3.5rem]">
+                    {book.Title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-1">
+                    {book.Author || "Unknown Author"}
+                  </p>
+                  <div className="space-y-2 mt-auto">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="font-medium text-foreground">
+                        {Math.round(book.___PercentRead || 0)}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={Math.round(book.___PercentRead || 0)}
+                      className="h-1.5"
+                    />
                   </div>
-                  <Progress
-                    value={Math.round(book.___PercentRead || 0)}
-                    className="h-1.5"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
       </div>
 
       {/* Pagination Controls - Only show when not searching */}
-      {!searchQuery && !(loading || searchLoading) && pagination.total_pages > 1 && (
-        <div className="mt-8 space-y-2">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1}
-                />
-              </PaginationItem>
-
-              {/* First page */}
-              {pagination.page > 2 && (
+      {!searchQuery &&
+        !(loading || searchLoading) &&
+        pagination.total_pages > 1 && (
+          <div className="mt-8 space-y-2">
+            <Pagination>
+              <PaginationContent>
                 <PaginationItem>
-                  <PaginationLink onClick={() => handlePageChange(1)}>
-                    1
-                  </PaginationLink>
-                </PaginationItem>
-              )}
-
-              {/* Ellipsis before current */}
-              {pagination.page > 3 && (
-                <PaginationItem>
-                  <PaginationEllipsis />
-                </PaginationItem>
-              )}
-
-              {/* Previous page */}
-              {pagination.page > 1 && (
-                <PaginationItem>
-                  <PaginationLink
+                  <PaginationPrevious
                     onClick={() => handlePageChange(pagination.page - 1)}
-                  >
-                    {pagination.page - 1}
-                  </PaginationLink>
+                    disabled={pagination.page === 1}
+                  />
                 </PaginationItem>
-              )}
 
-              {/* Current page */}
-              <PaginationItem>
-                <PaginationLink isActive>{pagination.page}</PaginationLink>
-              </PaginationItem>
+                {/* First page */}
+                {pagination.page > 2 && (
+                  <PaginationItem>
+                    <PaginationLink onClick={() => handlePageChange(1)}>
+                      1
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
 
-              {/* Next page */}
-              {pagination.page < pagination.total_pages && (
+                {/* Ellipsis before current */}
+                {pagination.page > 3 && (
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                )}
+
+                {/* Previous page */}
+                {pagination.page > 1 && (
+                  <PaginationItem>
+                    <PaginationLink
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                    >
+                      {pagination.page - 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+
+                {/* Current page */}
                 <PaginationItem>
-                  <PaginationLink
+                  <PaginationLink isActive>{pagination.page}</PaginationLink>
+                </PaginationItem>
+
+                {/* Next page */}
+                {pagination.page < pagination.total_pages && (
+                  <PaginationItem>
+                    <PaginationLink
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                    >
+                      {pagination.page + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+
+                {/* Ellipsis after current */}
+                {pagination.page < pagination.total_pages - 2 && (
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                )}
+
+                {/* Last page */}
+                {pagination.page < pagination.total_pages - 1 && (
+                  <PaginationItem>
+                    <PaginationLink
+                      onClick={() => handlePageChange(pagination.total_pages)}
+                    >
+                      {pagination.total_pages}
+                    </PaginationLink>
+                  </PaginationItem>
+                )}
+
+                <PaginationItem>
+                  <PaginationNext
                     onClick={() => handlePageChange(pagination.page + 1)}
-                  >
-                    {pagination.page + 1}
-                  </PaginationLink>
+                    disabled={pagination.page >= pagination.total_pages}
+                  />
                 </PaginationItem>
-              )}
-
-              {/* Ellipsis after current */}
-              {pagination.page < pagination.total_pages - 2 && (
-                <PaginationItem>
-                  <PaginationEllipsis />
-                </PaginationItem>
-              )}
-
-              {/* Last page */}
-              {pagination.page < pagination.total_pages - 1 && (
-                <PaginationItem>
-                  <PaginationLink
-                    onClick={() => handlePageChange(pagination.total_pages)}
-                  >
-                    {pagination.total_pages}
-                  </PaginationLink>
-                </PaginationItem>
-              )}
-
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page >= pagination.total_pages}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
     </>
   );
 }
