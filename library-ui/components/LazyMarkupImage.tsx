@@ -102,7 +102,7 @@ export default function LazyMarkupImage({
               className="max-w-full h-auto block relative z-20"
               onLoad={handleJpgLoad}
               onError={handleJpgError}
-              loading={priority ? "eager" : "lazy"}
+              loading="eager"
               decoding="async"
             />
           )}
@@ -116,7 +116,7 @@ export default function LazyMarkupImage({
               style={{ mixBlendMode: "normal", opacity: svgLoaded ? 1 : 0 }}
               onLoad={handleSvgLoad}
               onError={handleSvgError}
-              loading={priority ? "eager" : "lazy"}
+              loading="eager"
             />
           )}
         </div>
