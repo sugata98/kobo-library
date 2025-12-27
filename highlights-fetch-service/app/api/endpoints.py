@@ -231,6 +231,19 @@ def get_book_cover(
         # Set B2 covers service on cover_service for caching
         cover_service.b2_service = b2_covers_service
         
+        # First, try to get from B2 cache with streaming (fastest, most efficient)
+        cache_stream = cover_service.get_from_b2_cache_stream(title, author, isbn, image_url)
+        if cache_stream:
+            logger.info(f"✅ Streaming cover from B2 cache for: {title}")
+            return StreamingResponse(
+                cache_stream,
+                media_type="image/jpeg",
+                headers={
+                    "Cache-Control": "public, max-age=2592000, immutable",  # 30 days
+                }
+            )
+        
+        # If not in cache, fetch from external APIs
         cover_result = cover_service.fetch_cover(title, author, isbn, image_url)
         if cover_result:
             image_bytes, content_type = cover_result

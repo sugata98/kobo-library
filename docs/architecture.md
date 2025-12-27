@@ -29,11 +29,11 @@ The system follows a **client-server architecture** with clear separation betwee
 
 1. **Frontend (Next.js)**: React-based web application for browsing and organizing highlights
 2. **Backend (FastAPI)**: RESTful API service for data synchronization, parsing, and retrieval
-3. **Storage Layer**: 
+3. **Storage Layer**:
    - Backblaze B2 (cloud storage for database and markups)
    - Local SQLite (temporary database cache)
    - B2 Covers Cache (optional separate bucket for cover images)
-4. **External Dependencies**: 
+4. **External Dependencies**:
    - Book cover APIs (bookcover-api, Open Library, Google Books)
    - Authentication (JWT-based, single-user)
 
@@ -85,18 +85,18 @@ graph TB
     API --> KoboService
     API --> B2Service
     API --> CoverService
-    
+
     KoboService -->|Read/Query| SQLite
     B2Service -->|Download| B2Main
     B2Service -->|Read/Write| B2Covers
     B2Service -->|Download| B2Main
-    
+
     CoverService -->|Cache Check| B2Covers
     CoverService -->|Fetch| BookcoverAPI
     CoverService -->|Fallback| OpenLibrary
     CoverService -->|Fallback| GoogleBooks
     CoverService -->|Store| B2Covers
-    
+
     B2Main -.->|Sync via KoSync| KoboDevice[Kobo E-Reader<br/>External]
 ```
 
@@ -109,6 +109,7 @@ graph TB
 **Purpose**: Provide a modern, responsive web interface for browsing books, articles, highlights, and markups.
 
 **Key Modules**:
+
 - `app/page.tsx`: Main library view with tabs for books/articles, search, pagination
 - `app/books/[id]/page.tsx`: Book detail page showing highlights and markups grouped by chapter
 - `app/login/page.tsx`: Authentication login form
@@ -120,14 +121,17 @@ graph TB
 - `middleware.ts`: Next.js middleware for route protection
 
 **Inputs**:
+
 - User interactions (search, pagination, navigation)
 - API responses (books, highlights, markups, covers)
 
 **Outputs**:
+
 - Rendered UI (book lists, highlight cards, markup images)
 - API requests (authenticated via cookies)
 
 **Design Intent**:
+
 - **Client-side rendering** for fast interactions
 - **Server-side authentication** via middleware for security
 - **Progressive loading** for markups (JPG background + SVG overlay)
@@ -140,20 +144,24 @@ graph TB
 **Purpose**: Expose RESTful endpoints for data synchronization, retrieval, and cover fetching.
 
 **Key Modules**:
+
 - `endpoints.py`: Main API routes (`/sync`, `/books`, `/books/{id}/highlights`, `/books/{id}/markups`, `/books/{id}/cover`)
 - `auth.py`: Authentication endpoints (`/login`, `/logout`, `/verify`, `/me`)
 
 **Inputs**:
+
 - HTTP requests (GET, POST)
 - JWT tokens (cookies or Authorization header)
 - Query parameters (pagination, search, content type filters)
 
 **Outputs**:
+
 - JSON responses (books, highlights, markups)
 - Binary responses (cover images, markup SVGs/JPGs)
 - HTTP status codes and error messages
 
 **Design Intent**:
+
 - **RESTful design** with clear resource-based URLs
 - **Authentication-first** approach (all endpoints protected except `/auth/verify`)
 - **Auto-sync** capability (downloads database if missing on first request)
@@ -166,17 +174,21 @@ graph TB
 **Purpose**: Parse and query the Kobo SQLite database to extract books, highlights, and markups.
 
 **Key Modules**:
+
 - `KoboService`: Main service class with database connection management
 - Query methods: `get_books()`, `get_highlights()`, `get_markups()`, `get_book_by_id()`
 
 **Inputs**:
+
 - SQLite database file path
 - Query parameters (limit, offset, search, content_type)
 
 **Outputs**:
+
 - Structured dictionaries (books with metadata, highlights with chapter info, markups with location data)
 
 **Design Intent**:
+
 - **Direct SQLite access** (no ORM overhead for performance)
 - **Bytes handling** (Kobo stores text as bytes; service decodes appropriately)
 - **Deduplication logic** (handles duplicate book entries by picking highest progress)
@@ -184,6 +196,7 @@ graph TB
 - **Content type classification** (books vs articles via MimeType patterns)
 
 **Key Queries**:
+
 - Books: `ContentType = '6'` AND `BookID IS NULL` (top-level items)
 - Highlights: `Bookmark.Type = 'highlight'` joined with `content` table
 - Markups: `Bookmark.ExtraAnnotationData IS NOT NULL` (contains scribble data)
@@ -195,19 +208,23 @@ graph TB
 **Purpose**: Interface with Backblaze B2 for file operations (download database, retrieve markups, cache covers).
 
 **Key Modules**:
+
 - `B2Service`: Generic B2 service class (supports multiple buckets)
 - Two instances: `b2_service` (main bucket) and `b2_covers_service` (optional covers bucket)
 
 **Inputs**:
+
 - B2 credentials (Application Key ID, Application Key, Bucket Name)
 - File paths/names
 
 **Outputs**:
+
 - File downloads (to local path or memory)
 - File uploads (covers to cache)
 - File streams (for large markup JPGs)
 
 **Design Intent**:
+
 - **Separation of concerns** (main bucket for data, optional covers bucket for caching)
 - **Streaming support** (chunked downloads for large files to reduce memory usage)
 - **Connection management** (lazy connection with retry logic)
@@ -220,17 +237,21 @@ graph TB
 **Purpose**: Fetch book covers from multiple sources with intelligent fallback and B2 caching.
 
 **Key Modules**:
+
 - `CoverService`: Main service with caching integration
 - Static methods: `fetch_from_bookcover_api()`, `fetch_from_open_library()`, `fetch_from_google_books()`
 
 **Inputs**:
+
 - Book metadata (title, author, ISBN, ImageUrl from database)
 
 **Outputs**:
+
 - Image bytes with content type
 - Cache keys for B2 storage
 
 **Design Intent**:
+
 - **Priority-based fallback**:
   1. B2 cache (instant)
   2. ImageUrl from Kobo database (for articles/embedded covers)
@@ -247,20 +268,24 @@ graph TB
 **Purpose**: Provide JWT-based authentication for single-user access control.
 
 **Key Modules**:
+
 - `authenticate_user()`: Password verification (plaintext comparison for single-user)
 - `create_access_token()`: JWT generation with configurable expiry
 - `require_auth()`: FastAPI dependency for route protection
 - `get_current_user_from_cookie()`: Cookie-based token extraction
 
 **Inputs**:
+
 - Username and password (from login request)
 - JWT tokens (from cookies or Authorization header)
 
 **Outputs**:
+
 - JWT tokens (with httpOnly cookies for browsers)
 - User identity (username from token payload)
 
 **Design Intent**:
+
 - **Single-user mode** (simple password comparison, no database)
 - **Dual authentication** (cookies for browsers, Bearer tokens for API clients)
 - **Configurable expiry** (default 7 days, max 30 days)
@@ -273,17 +298,21 @@ graph TB
 **Purpose**: Centralized configuration management with Pydantic validation.
 
 **Key Modules**:
+
 - `Settings`: Pydantic BaseSettings class with environment variable loading
 - Validators: JWT secret length, token expiry limits
 
 **Inputs**:
+
 - Environment variables (`.env` file or system env)
 
 **Outputs**:
+
 - Validated settings object with type-safe access
 - `SecretStr` types for sensitive values (auto-redacted in logs)
 
 **Design Intent**:
+
 - **Fail-fast validation** (app won't start with invalid config)
 - **Security-first** (secrets use `SecretStr`, validation enforces minimums)
 - **Flexible deployment** (supports multiple B2 buckets, optional auth)
@@ -352,7 +381,7 @@ sequenceDiagram
 
     Frontend->>Backend: GET /api/books/{id}/cover?title=...&author=...
     Backend->>CoverService: fetch_cover(title, author, isbn, imageUrl)
-    
+
     alt ImageUrl from database exists
         CoverService->>CoverService: Fetch from ImageUrl
         CoverService-->>Backend: Image bytes
@@ -388,7 +417,7 @@ sequenceDiagram
             end
         end
     end
-    
+
     Backend-->>Frontend: Image with Cache-Control headers
     Frontend->>Frontend: Display cover (browser caches for 30 days)
 ```
@@ -406,29 +435,29 @@ sequenceDiagram
     User->>Frontend: Click on book
     Frontend->>Backend: GET /api/books/{id}/highlights (with JWT)
     Frontend->>Backend: GET /api/books/{id}/markups (with JWT)
-    
+
     Backend->>Backend: Verify JWT token
     Backend->>SQLite: Query Bookmark table (Type='highlight')
     SQLite-->>Backend: Highlight records
     Backend->>SQLite: Join with content table for chapter info
     Backend->>SQLite: Calculate true chapter progress
     Backend-->>Frontend: JSON: [{BookmarkID, Text, ChapterName, ...}]
-    
+
     Backend->>SQLite: Query Bookmark table (ExtraAnnotationData IS NOT NULL)
     SQLite-->>Backend: Markup records
     Backend->>SQLite: Join with content table
     Backend-->>Frontend: JSON: [{BookmarkID, ExtraAnnotationData, ...}]
-    
+
     Frontend->>Backend: GET /api/markup/{id}/jpg (for each markup)
     Backend->>B2: Stream JPG file (chunked)
     B2-->>Backend: JPG chunks
     Backend-->>Frontend: Streaming JPG response
-    
+
     Frontend->>Backend: GET /api/markup/{id}/svg (for each markup)
     Backend->>B2: Get SVG file
     B2-->>Backend: SVG content
     Backend-->>Frontend: SVG response
-    
+
     Frontend->>Frontend: Render: JPG background + SVG overlay
     Frontend-->>User: Display highlights and markups grouped by chapter
 ```
@@ -523,21 +552,25 @@ sequenceDiagram
 ### 7.1 Safe Extension Points
 
 #### 7.1.1 New Content Types
+
 - **Location**: `kobo.py` - `get_books()` method
 - **How**: Add new `CASE` statements in MimeType classification
 - **Example**: Support for PDFs, notebooks, or other Kobo content types
 
 #### 7.1.2 Additional Cover Sources
+
 - **Location**: `cover_service.py` - `fetch_cover()` method
 - **How**: Add new static methods and integrate into fallback chain
 - **Example**: Amazon API, Goodreads direct API, custom cover service
 
 #### 7.1.3 New API Endpoints
+
 - **Location**: `endpoints.py` - Add new router functions
 - **How**: Follow existing pattern (authentication, error handling, logging)
 - **Example**: `/api/books/{id}/export`, `/api/statistics`, `/api/search`
 
 #### 7.1.4 Frontend Features
+
 - **Location**: `library-ui/app/` and `library-ui/components/`
 - **How**: Add new pages/components, use existing API client
 - **Example**: Reading statistics dashboard, export functionality, tags/categories
@@ -545,33 +578,38 @@ sequenceDiagram
 ### 7.2 Suggested Refactors
 
 #### 7.2.1 Database Abstraction Layer
+
 - **Current**: Direct SQLite queries in `KoboService`
 - **Proposal**: Introduce a repository pattern or lightweight ORM
 - **Benefit**: Easier to test, modify queries, and support multiple database formats
 
 #### 7.2.2 Multi-User Support
+
 - **Current**: Single-user authentication with environment variables
-- **Proposal**: 
+- **Proposal**:
   - Add user database (SQLite or PostgreSQL)
   - Hash passwords with bcrypt (infrastructure exists but unused)
   - Add user_id to all data queries
 - **Benefit**: Support multiple users, family accounts, or sharing
 
 #### 7.2.3 Shared Database Cache
+
 - **Current**: Each backend instance downloads its own SQLite copy
-- **Proposal**: 
+- **Proposal**:
   - Use shared database (PostgreSQL) or Redis cache
   - Or implement database versioning/timestamping to avoid re-downloads
 - **Benefit**: Better scalability for multiple backend instances
 
 #### 7.2.4 Cover Service Abstraction
+
 - **Current**: Hardcoded API calls in `CoverService`
 - **Proposal**: Plugin-based architecture for cover providers
 - **Benefit**: Easier to add/remove providers, test independently
 
 #### 7.2.5 Error Handling & Observability
+
 - **Current**: Basic logging and error responses
-- **Proposal**: 
+- **Proposal**:
   - Structured logging (JSON format)
   - Error tracking (Sentry, Rollbar)
   - Metrics collection (Prometheus, Datadog)
@@ -580,28 +618,32 @@ sequenceDiagram
 ### 7.3 Scaling Strategies
 
 #### 7.3.1 Horizontal Scaling (Backend)
+
 - **Current**: Single-worker FastAPI
-- **Proposal**: 
+- **Proposal**:
   - Increase workers: `--workers 4` (or use gunicorn with uvicorn workers)
   - Use shared database cache (see 7.2.3)
   - Load balancer in front (Render already provides this)
 - **Benefit**: Handle more concurrent users
 
 #### 7.3.2 Database Scaling
+
 - **Current**: Single SQLite file
-- **Proposal**: 
+- **Proposal**:
   - Migrate to PostgreSQL for shared access
   - Or use read replicas of SQLite (periodic sync from B2)
 - **Benefit**: Support multiple backend instances, better query performance
 
 #### 7.3.3 Caching Layer
+
 - **Current**: B2 cache + browser cache
-- **Proposal**: 
+- **Proposal**:
   - Add Redis for API response caching (books list, highlights)
   - CDN for cover images (Cloudflare, CloudFront)
 - **Benefit**: Reduce backend load, faster response times
 
 #### 7.3.4 Feature Scaling
+
 - **Search**: Add full-text search (Elasticsearch, Meilisearch, or SQLite FTS)
 - **Analytics**: Add reading statistics, progress tracking, insights
 - **Export**: Add export formats (PDF, Markdown, JSON)
@@ -613,17 +655,20 @@ sequenceDiagram
 
 ### 8.1 Assumptions to Validate
 
-1. **Kobo Database Stability**: 
+1. **Kobo Database Stability**:
+
    - **Assumption**: Kobo SQLite schema remains stable
    - **Question**: How often does Kobo change their database structure?
    - **Validation**: Monitor Kobo firmware updates, test with multiple Kobo models
 
 2. **B2 Availability**:
+
    - **Assumption**: B2 is always available and fast
    - **Question**: What happens if B2 is down or slow?
    - **Validation**: Add retry logic, health checks, fallback mechanisms
 
 3. **Cover API Reliability**:
+
    - **Assumption**: External cover APIs are reliable and free
    - **Question**: What if APIs change, require keys, or rate-limit?
    - **Validation**: Monitor API responses, add rate limiting, consider paid alternatives
@@ -636,26 +681,31 @@ sequenceDiagram
 ### 8.2 Decisions to Revisit
 
 1. **SQLite vs. PostgreSQL**:
+
    - **Current**: SQLite for simplicity
    - **Revisit When**: Scaling to multiple backend instances or adding multi-user
    - **Consideration**: PostgreSQL provides better concurrency and shared access
 
 2. **JWT Expiry Duration**:
+
    - **Current**: 7 days default, 30 days max
    - **Revisit When**: User feedback on session length
    - **Consideration**: Balance security vs. convenience
 
 3. **Cover Caching Strategy**:
+
    - **Current**: B2 cache + browser cache
    - **Revisit When**: B2 costs increase or performance degrades
    - **Consideration**: CDN, local file system cache, or in-memory cache
 
 4. **Authentication Method**:
+
    - **Current**: Single-user with environment variables
    - **Revisit When**: Adding multi-user or OAuth
    - **Consideration**: Database-backed users, OAuth providers (Google, GitHub)
 
 5. **Deployment Architecture**:
+
    - **Current**: Render (backend) + Vercel (frontend)
    - **Revisit When**: Costs increase or need more control
    - **Consideration**: Self-hosted, Kubernetes, or other platforms
@@ -677,4 +727,3 @@ sequenceDiagram
   - `KOBO_DATABASE_STRUCTURE.md`: Database schema reference
   - `highlights-fetch-service/SECURITY_IMPROVEMENTS.md`: Security implementation details
   - `highlights-fetch-service/DEPENDENCY_MANAGEMENT.md`: Dependency versioning strategy
-

@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { getBooks } from "@/lib/api";
 import Link from "next/link";
-import BookCover from "./BookCover";
+import LazyBookCover from "./LazyBookCover";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -139,14 +139,14 @@ export default function BookList({
             <BookSkeleton key={`skeleton-${index}`} />
           ))}
 
-        {!(loading || searchLoading) && displayBooks.map((book) => (
+        {!(loading || searchLoading) && displayBooks.map((book, index) => (
           <Link
             href={`/books/${encodeURIComponent(book.ContentID)}`}
             key={book.ContentID}
           >
             <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col h-full">
-              {/* Book Cover */}
-              <BookCover
+              {/* Book Cover - Priority load first 5, lazy load rest */}
+              <LazyBookCover
                 title={book.Title}
                 author={book.Author}
                 isbn={book.ISBN}
@@ -155,6 +155,8 @@ export default function BookList({
                 iconSize="w-16 h-16"
                 showPlaceholderText={true}
                 imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                priority={index < 5} // Load first 5 immediately
+                preloadMargin="300px" // Start loading 300px before entering viewport
               />
 
               {/* Book Info */}

@@ -16,5 +16,6 @@ COPY . .
 # Create directory for downloaded database
 RUN mkdir -p /tmp
 
-# Use single worker to reduce memory usage (important for 512MB servers)
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
+# Use 4 workers for better concurrent request handling
+# With streaming, memory usage per worker is reduced, allowing more workers
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4
