@@ -33,6 +33,8 @@ app.include_router(api_router, prefix="/api")
 def read_root():
     return {"message": "Readr API is running"}
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
+    """Health check endpoint for uptime monitoring services.
+    Supports both GET and HEAD requests."""
     return {"status": "ok"}
