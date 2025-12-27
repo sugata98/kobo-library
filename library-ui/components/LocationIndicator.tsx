@@ -1,3 +1,5 @@
+import { Progress } from "@/components/ui/progress";
+
 interface LocationIndicatorProps {
   index: number; // Sequential index (1-based) of the item
   total: number; // Total number of items
@@ -17,18 +19,6 @@ export default function LocationIndicator({
   chapterProgress,
   className = "",
 }: LocationIndicatorProps) {
-  // Determine progress bar color based on chapter progress
-  let progressBarColor = "bg-primary";
-
-  if (chapterProgress !== null && chapterProgress !== undefined) {
-    if (chapterProgress < 0.33) {
-      progressBarColor = "bg-primary";
-    } else if (chapterProgress < 0.66) {
-      progressBarColor = "bg-accent";
-    } else {
-      progressBarColor = "bg-primary/80";
-    }
-  }
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
@@ -54,12 +44,10 @@ export default function LocationIndicator({
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {Math.round(chapterProgress * 100)}%
               </span>
-              <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-secondary max-w-[120px]">
-                <div
-                  className={`h-full ${progressBarColor} transition-all duration-300`}
-                  style={{ width: `${Math.round(chapterProgress * 100)}%` }}
-                />
-              </div>
+              <Progress
+                value={Math.round(chapterProgress * 100)}
+                className="flex-1 h-1.5 max-w-[120px]"
+              />
             </div>
           )}
       </div>
