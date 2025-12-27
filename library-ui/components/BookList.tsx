@@ -6,6 +6,7 @@ import { getBooks } from "@/lib/api";
 import Link from "next/link";
 import BookCover from "./BookCover";
 import { Card, CardContent } from "@/components/ui/card";
+import { BRANDING } from "@/lib/branding";
 
 export default function BookList({
   searchQuery = "",
@@ -84,7 +85,7 @@ export default function BookList({
     }
   }, [searchQuery]);
 
-  if (loading && !searchQuery) return <div>Loading books...</div>;
+  if (loading && !searchQuery) return <div>{BRANDING.ui.loadingBooks}</div>;
   if (error) return <div className="text-destructive">Error: {error}</div>;
 
   // Use server-filtered results directly when searching, paginated results otherwise
@@ -101,7 +102,7 @@ export default function BookList({
     <>
       {(loading || searchLoading) && (
         <div className="text-center py-8 text-muted-foreground">
-          Loading books...
+          {BRANDING.ui.loadingBooks}
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
