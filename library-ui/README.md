@@ -1,6 +1,6 @@
-# Library UI
+# Readr UI
 
-This directory contains the Next.js frontend application for viewing Kobo books, highlights, and markups.
+This directory contains the Next.js frontend application for browsing and organizing your reading highlights and annotations.
 
 ## Vercel Deployment
 

@@ -1,6 +1,6 @@
-# Enhancement Ideas for Kobo Library
+# Enhancement Ideas for Readr
 
-Based on comprehensive database schema analysis, here are feature suggestions organized by priority and feasibility.
+Based on comprehensive database schema analysis, here are feature suggestions organized by priority and feasibility for enhancing the highlights and annotations experience.
 
 ## 🎨 **HIGH PRIORITY - Quick Wins**
 

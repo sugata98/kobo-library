@@ -6,6 +6,7 @@ import { getBookHighlights, getBookMarkups, getBookDetails } from "@/lib/api";
 import Link from "next/link";
 import BookCover from "@/components/BookCover";
 import LocationIndicator from "@/components/LocationIndicator";
+import { BRANDING } from "@/lib/branding";
 
 // Use the backend proxy endpoints
 const getSvgUrl = (markupId: string) =>
@@ -149,13 +150,13 @@ export default function BookDetails({
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="p-8">Loading details...</div>;
+  if (loading) return <div className="p-8">{BRANDING.ui.loadingDetails}</div>;
   if (error) return <div className="p-8 text-destructive">Error: {error}</div>;
 
   return (
     <div className="min-h-screen p-8 bg-background text-foreground">
       <Link href="/" className="text-primary hover:underline mb-4 inline-block">
-        &larr; Back to Library
+        {BRANDING.ui.backToLibrary}
       </Link>
 
       <div className="flex items-start gap-6 mb-6">
@@ -200,7 +201,7 @@ export default function BookDetails({
           </h2>
           <div className="space-y-6">
             {highlights.length === 0 ? (
-              <p className="text-muted-foreground">No highlights found.</p>
+              <p className="text-muted-foreground">{BRANDING.ui.noHighlights}</p>
             ) : (
               (() => {
                 const groupedHighlights = groupByChapter(highlights);
@@ -252,7 +253,7 @@ export default function BookDetails({
           </h2>
           <div className="space-y-6">
             {markups.length === 0 ? (
-              <p className="text-muted-foreground">No markups found.</p>
+              <p className="text-muted-foreground">{BRANDING.ui.noMarkups}</p>
             ) : (
               (() => {
                 const groupedMarkups = groupByChapter(markups);

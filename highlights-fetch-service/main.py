@@ -20,7 +20,7 @@ app.include_router(api_router, prefix="/api")
 
 @app.get("/")
 def read_root():
-    return {"message": "Kobo Library API is running"}
+    return {"message": "Readr API is running"}
 
 @app.get("/health")
 def health_check():

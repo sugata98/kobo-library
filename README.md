@@ -1,11 +1,21 @@
-# Kobo Library
+# Readr
 
-A monorepo for syncing and viewing Kobo e-reader highlights and markups from B2 Cloud.
+**Your personal space to revisit and connect reading highlights and annotations.**
+
+Readr syncs, organizes, and helps you reflect on highlights and annotations from your Kobo e-reader. This is not an ebook reader—it's a tool for rediscovering and connecting insights from your reading journey.
+
+## What is Readr?
+
+Readr helps you:
+
+- **Revisit** highlights and annotations from your Kobo reading sessions
+- **Organize** insights by book, chapter, and timeline
+- **Reflect** on your reading journey and connect ideas across books
 
 ## Structure
 
-- `library-ui/`: Next.js application for viewing books and highlights.
-- `highlights-fetch-service/`: FastAPI application for syncing with B2 and parsing `KoboReader.sqlite`.
+- `library-ui/`: Next.js application for browsing and organizing highlights and annotations
+- `highlights-fetch-service/`: FastAPI service for syncing with B2 and parsing `KoboReader.sqlite`
 
 ## Prerequisites
 
