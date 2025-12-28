@@ -10,6 +10,8 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  // Explicitly configure Turbopack to silence warnings
+  turbopack: {},
 };
 
 export default withSerwist(nextConfig);

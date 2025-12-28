@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
 
 interface LazyMarkupImageProps {
   markupId: string;
   priority?: boolean; // Load immediately without lazy loading
   preloadMargin?: string; // How far before viewport to start loading
+  overlay?: React.ReactNode; // Optional overlay content to display on top
 }
 
 // Use the backend proxy endpoints
@@ -25,6 +26,7 @@ export default function LazyMarkupImage({
   markupId,
   priority = false,
   preloadMargin = "400px", // Larger margin for markups since they're bigger
+  overlay,
 }: LazyMarkupImageProps) {
   const [shouldLoad, setShouldLoad] = useState(priority);
   const [jpgLoaded, setJpgLoaded] = useState(false);
@@ -78,8 +80,15 @@ export default function LazyMarkupImage({
   return (
     <div
       ref={containerRef}
-      className="border border-border p-2 rounded bg-card relative w-full"
+      className="rounded overflow-hidden relative w-full"
     >
+      {/* Optional overlay content */}
+      {overlay && (
+        <div className="absolute top-0 left-0 right-0 z-40 pointer-events-auto">
+          {overlay}
+        </div>
+      )}
+      
       {!showFallback && (
         <div className="relative min-h-[200px]">
           {/* Loader - stays in background, gets covered by JPG when it streams in */}

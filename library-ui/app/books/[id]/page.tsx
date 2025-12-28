@@ -77,11 +77,12 @@ export default function BookDetails({
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (error) return <div className="p-8 text-destructive">Error: {error}</div>;
+  if (error)
+    return <div className="p-4 md:p-8 text-destructive">Error: {error}</div>;
 
   if (loading) {
     return (
-      <div className="min-h-screen p-8 bg-background text-foreground">
+      <div className="min-h-screen p-4 md:p-8 bg-background text-foreground">
         <Skeleton className="h-6 w-32 mb-4" />
 
         <div className="flex items-start gap-6 mb-6">
@@ -134,7 +135,7 @@ export default function BookDetails({
   }
 
   return (
-    <div className="min-h-screen p-8 bg-background text-foreground">
+    <div className="min-h-screen p-4 md:p-8 bg-background text-foreground">
       <Link
         href="/"
         className="inline-flex items-center gap-2 h-9 px-3 mb-4 -ml-2 rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -194,9 +195,18 @@ export default function BookDetails({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
-            Highlights ({highlights.length})
-          </h2>
+          {/* Highlights header badge */}
+          <div className="mb-6">
+            <Badge
+              variant="secondary"
+              className="w-full text-base font-semibold px-6 py-4 flex items-center justify-center gap-2"
+            >
+              <span>Highlights</span>
+              <Badge variant="outline" className="text-xs font-medium">
+                {highlights.length}
+              </Badge>
+            </Badge>
+          </div>
           <div className="space-y-6">
             {highlights.length === 0 ? (
               <Empty className="border border-dashed">
@@ -217,7 +227,7 @@ export default function BookDetails({
                   ([chapter, items]) => (
                     <div key={chapter} className="space-y-3">
                       {/* Chapter header */}
-                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-3 px-4 -mx-4 z-50 border-b border-border/40 shadow-sm">
+                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 py-3 px-4 -mx-4 z-50 border-b border-border/40 shadow-sm">
                         <div className="flex items-center gap-2">
                           <BookOpen className="h-4 w-4 text-primary shrink-0" />
                           <h3 className="text-sm font-semibold text-foreground tracking-wide flex-1">
@@ -235,7 +245,7 @@ export default function BookDetails({
                           key={h.BookmarkID}
                           className="hover:shadow-lg transition-shadow"
                         >
-                          <CardContent className="pt-6">
+                          <CardContent className="pt-4 md:pt-6">
                             <div className="flex items-center justify-between gap-4 mb-3">
                               <LocationIndicator
                                 index={idx + 1}
@@ -271,9 +281,19 @@ export default function BookDetails({
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold mb-4 border-b pb-2">
-            Markups ({markups.length})
-          </h2>
+          {/* Markups header badge */}
+          <div className="mb-6">
+            <Badge
+              variant="secondary"
+              className="w-full text-base font-semibold px-6 py-4 flex items-center justify-center gap-2"
+            >
+              <span>Markups</span>
+              <Badge variant="outline" className="text-xs font-medium">
+                {markups.length}
+              </Badge>
+            </Badge>
+          </div>
+
           <div className="space-y-6">
             {markups.length === 0 ? (
               <Empty className="border border-dashed">
@@ -292,7 +312,7 @@ export default function BookDetails({
                   ([chapter, items]) => (
                     <div key={chapter} className="space-y-3">
                       {/* Chapter header */}
-                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-3 px-4 -mx-4 z-50 border-b border-border/40 shadow-sm">
+                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 py-3 px-4 -mx-4 z-50 border-b border-border/40 shadow-sm">
                         <div className="flex items-center gap-2">
                           <BookOpen className="h-4 w-4 text-primary shrink-0" />
                           <h3 className="text-sm font-semibold text-foreground tracking-wide flex-1">
@@ -308,33 +328,34 @@ export default function BookDetails({
                       {items.map((m: any, idx: number) => (
                         <Card
                           key={m.BookmarkID}
-                          className="hover:shadow-lg transition-shadow"
+                          className="hover:shadow-lg transition-shadow overflow-hidden"
                         >
-                          <CardContent className="pt-6">
-                            <div className="flex items-center justify-between gap-4 mb-3">
-                              <LocationIndicator
-                                index={idx + 1}
-                                total={items.length}
-                                chapterName={null}
-                                chapterProgress={m.TrueChapterProgress}
-                                className="flex-1"
-                              />
-                              <div className="text-xs text-muted-foreground shrink-0">
-                                {new Date(m.DateCreated).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  }
-                                )}
-                              </div>
-                            </div>
-
+                          <CardContent className="pt-4 md:pt-6">
                             <LazyMarkupImage
                               markupId={m.BookmarkID}
                               priority={idx < 3}
                               preloadMargin="400px"
+                              overlay={
+                                <div className="flex items-center justify-between gap-2 px-3 py-2 bg-gradient-to-b from-background/90 via-background/70 to-transparent backdrop-blur-sm">
+                                  <LocationIndicator
+                                    index={idx + 1}
+                                    total={items.length}
+                                    chapterName={null}
+                                    chapterProgress={m.TrueChapterProgress}
+                                    className="flex-1 min-w-0"
+                                  />
+                                  <div className="text-xs text-muted-foreground shrink-0 font-medium">
+                                    {new Date(m.DateCreated).toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      }
+                                    )}
+                                  </div>
+                                </div>
+                              }
                             />
                           </CardContent>
                         </Card>
