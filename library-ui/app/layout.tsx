@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -16,8 +16,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: BRANDING.name,
+  title: {
+    default: BRANDING.name,
+    template: `%s | ${BRANDING.name}`,
+  },
   description: BRANDING.description,
+  keywords: [...BRANDING.keywords],
+  authors: [{ name: BRANDING.name }],
+  applicationName: BRANDING.name,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: BRANDING.name,
+  },
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
     icon: [
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
@@ -26,6 +40,28 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
+  openGraph: {
+    type: "website",
+    siteName: BRANDING.name,
+    title: BRANDING.name,
+    description: BRANDING.description,
+  },
+  twitter: {
+    card: "summary",
+    title: BRANDING.name,
+    description: BRANDING.description,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
