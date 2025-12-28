@@ -93,7 +93,7 @@ export default function LazyMarkupImage({
         <div className="relative min-h-[200px]">
           {/* Loader - stays in background, gets covered by JPG when it streams in */}
           {(!shouldLoad || (!jpgLoaded && !jpgError)) && (
-            <div className="absolute inset-0 w-full min-h-[200px] bg-linear-to-br from-muted to-muted/80 animate-pulse rounded flex items-center justify-center z-0">
+            <div className="absolute inset-0 w-full min-h-[200px] bg-gradient-to-br from-muted to-muted/80 animate-pulse rounded flex items-center justify-center z-0">
               <Spinner className="size-8 text-primary" />
               {!shouldLoad && (
                 <span className="absolute bottom-4 text-xs text-muted-foreground">

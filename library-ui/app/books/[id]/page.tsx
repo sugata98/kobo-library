@@ -87,7 +87,7 @@ export default function BookDetails({
 
         <div className="flex items-start gap-6 mb-6">
           {/* Book cover skeleton */}
-          <Skeleton className="w-48 aspect-2/3 rounded-lg" />
+          <Skeleton className="w-48 aspect-[2/3] rounded-lg" />
 
           {/* Book info skeleton */}
           <div className="flex-1 space-y-4">
@@ -151,11 +151,11 @@ export default function BookDetails({
               author={bookInfo.Author}
               isbn={bookInfo.ISBN}
               imageUrl={bookInfo.ImageUrl}
-              className="relative w-32 h-48 bg-linear-to-br from-muted to-muted/80 overflow-hidden rounded-lg shadow-xl hover:shadow-2xl transition-shadow duration-300"
+              className="relative w-32 h-48 bg-gradient-to-br from-muted to-muted/80 overflow-hidden rounded-lg shadow-xl hover:shadow-2xl transition-shadow duration-300"
               iconSize="w-12 h-12"
             />
             {/* Gradient glow effect underneath */}
-            <div className="absolute inset-0 -z-10 bg-linear-to-b from-primary/20 via-primary/10 to-transparent blur-xl translate-y-4 rounded-lg"></div>
+            <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/20 via-primary/10 to-transparent blur-xl translate-y-4 rounded-lg"></div>
           </div>
         )}
         <div>
@@ -336,7 +336,7 @@ export default function BookDetails({
                               priority={idx < 3}
                               preloadMargin="400px"
                               overlay={
-                                <div className="flex items-center justify-between gap-2 px-3 py-2 bg-linear-to-b from-background/90 via-background/70 to-transparent backdrop-blur-sm">
+                                <div className="flex items-center justify-between gap-2 px-3 py-2 bg-gradient-to-b from-background/90 via-background/70 to-transparent backdrop-blur-sm">
                                   <LocationIndicator
                                     index={idx + 1}
                                     total={items.length}

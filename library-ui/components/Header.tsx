@@ -32,7 +32,7 @@ export function Header() {
               <div className="absolute inset-0 -z-10 bg-primary/20 blur-xl rounded-lg"></div>
             </div>
             <div className="flex flex-col justify-center min-h-[40px]">
-              <h1 className="text-xl md:text-2xl font-bold bg-linear-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent tracking-tight leading-tight">
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent tracking-tight leading-tight">
                 {BRANDING.name}
               </h1>
               <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">
