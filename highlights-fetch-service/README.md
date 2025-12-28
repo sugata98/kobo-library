@@ -10,7 +10,7 @@ The service automatically keeps the database up-to-date with **zero user action 
 - **🔔 B2 Webhooks** (optional): Real-time sync when database is uploaded to B2
 - **🔄 Auto-sync Fallback**: Downloads database if local cache is missing
 
-**📖 See [AUTOMATIC_SYNC_SETUP.md](../docs/AUTOMATIC_SYNC_SETUP.md) for complete setup guide.**
+**📖 See [DATABASE_SYNC.md](../docs/DATABASE_SYNC.md) for complete setup guide and architecture details.**
 
 **Quick Start:** No configuration needed! Startup check is already active and will sync automatically on service restarts.
 
