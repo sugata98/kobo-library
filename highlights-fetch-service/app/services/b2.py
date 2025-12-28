@@ -44,6 +44,21 @@ class B2Service:
     def list_files(self, prefix: str = ""):
         self._ensure_connected()
         return self.bucket.ls(folder_to_list=prefix)
+    
+    def get_file_info(self, file_name: str):
+        """Get file metadata including modification time without downloading the file"""
+        self._ensure_connected()
+        try:
+            file_info = self.bucket.get_file_info_by_name(file_name)
+            return {
+                'name': file_info.file_name,
+                'size': file_info.size,
+                'upload_timestamp': file_info.upload_timestamp,
+                'content_type': file_info.content_type
+            }
+        except Exception as e:
+            logger.error(f"Error getting file info for {file_name}: {e}")
+            return None
 
     def get_file_content(self, file_name: str) -> bytes:
         self._ensure_connected()
