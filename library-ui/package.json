@@ -22,11 +22,12 @@
     "next-themes": "^1.0.0-beta.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "serwist": "^9.0.9",
     "shadcn": "^3.6.2",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
-    "@ducanh2912/next-pwa": "^10.2.9",
+    "@serwist/next": "^9.0.9",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

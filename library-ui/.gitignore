@@ -40,7 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# PWA files
+# PWA files (Serwist)
 **/public/sw.js
 **/public/sw.js.map
 **/public/workbox-*.js
@@ -48,3 +48,5 @@ next-env.d.ts
 **/public/worker-*.js
 **/public/worker-*.js.map
 **/public/fallback-*.js
+**/public/swe-worker-*.js
+**/public/swe-worker-*.js.map

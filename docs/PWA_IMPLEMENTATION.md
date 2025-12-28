@@ -8,12 +8,14 @@ Readr is now a fully-functional Progressive Web App (PWA), enabling users to ins
 
 ### 1. Service Worker
 
-- **Generated via**: `@ducanh2912/next-pwa`
+- **Generated via**: `@serwist/next` (Serwist v9)
+- **Source**: `app/sw.ts` (compiled to `public/sw.js` during build)
 - **Location**: `public/sw.js` (auto-generated during build)
 - **Behavior**:
   - Registers automatically on app load
   - Activates immediately via `skipWaiting: true`
   - Claims clients immediately via `clientsClaim: true`
+  - Navigation preload enabled for faster initial loads
 
 ### 2. Web App Manifest
 
@@ -118,21 +120,44 @@ Readr is now a fully-functional Progressive Web App (PWA), enabling users to ins
 ### Next.js Config (`next.config.ts`)
 
 ```typescript
-withPWA({
-  dest: "public",
+import withSerwistInit from "@serwist/next";
+
+const withSerwist = withSerwistInit({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
   disable: process.env.NODE_ENV === "development",
   register: true,
-  sw: "sw.js",
-  fallbacks: { document: "/offline" },
-  workboxOptions: {
-    disableDevLogs: true,
-    skipWaiting: true,
-    clientsClaim: true,
-    runtimeCaching: [
-      /* strategies */
-    ],
+});
+
+const nextConfig: NextConfig = {
+  reactCompiler: true,
+};
+
+export default withSerwist(nextConfig);
+```
+
+### Service Worker Source (`app/sw.ts`)
+
+The service worker is defined in TypeScript with custom runtime caching strategies:
+
+```typescript
+import { CacheFirst, ExpirationPlugin, NetworkFirst, Serwist } from "serwist";
+
+const serwist = new Serwist({
+  precacheEntries: self.__SW_MANIFEST,
+  skipWaiting: true,
+  clientsClaim: true,
+  navigationPreload: true,
+  disableDevLogs: true,
+  runtimeCaching: [
+    // Custom caching strategies for fonts, images, API calls, etc.
+  ],
+  fallbacks: {
+    entries: [{ url: "/offline", matcher: ({ request }) => request.destination === "document" }],
   },
-})(nextConfig);
+});
+
+serwist.addEventListeners();
 ```
 
 ### Build Command
@@ -141,17 +166,19 @@ withPWA({
 npm run build --webpack
 ```
 
-- Uses webpack instead of Turbopack (required for PWA plugin compatibility)
-- Generates service worker and workbox files
+- Uses webpack instead of Turbopack (required for Serwist compatibility)
+- Compiles service worker from TypeScript source
+- Generates optimized service worker bundle
 
 ## Files Generated During Build
 
 **Automatically created in `public/`:**
 
-- `sw.js` - Service worker
+- `sw.js` - Compiled service worker (from `app/sw.ts`)
 - `sw.js.map` - Source map for debugging
-- `workbox-*.js` - Workbox runtime
+- `workbox-*.js` - Workbox runtime (used by Serwist)
 - `workbox-*.js.map` - Workbox source map
+- `swe-worker-*.js` - Serwist worker files
 
 **Git ignored via `.gitignore`:**
 
@@ -160,6 +187,10 @@ npm run build --webpack
 **/public/sw.js.map
 **/public/workbox-*.js
 **/public/workbox-*.js.map
+**/public/worker-*.js
+**/public/worker-*.js.map
+**/public/swe-worker-*.js
+**/public/swe-worker-*.js.map
 ```
 
 ## Testing PWA Locally
@@ -361,9 +392,42 @@ Ensure:
 3. ✅ Service worker not blocked by CSP
 4. ✅ Manifest served with correct MIME type (`application/manifest+json`)
 
+## Migration from next-pwa to Serwist
+
+### Why Migrate?
+
+The project previously used `@ducanh2912/next-pwa`, which is incompatible with Next.js 15+. Serwist (`@serwist/next`) is the actively maintained successor that provides:
+
+- ✅ **Next.js 15+ compatibility** (supports Next.js 16.1.1)
+- ✅ **TypeScript-first** service worker development
+- ✅ **Better API design** with explicit strategy classes
+- ✅ **Active maintenance** and modern features
+- ✅ **Same underlying tech** (Workbox) with improved DX
+
+### Key Changes
+
+1. **Package**: `@ducanh2912/next-pwa@^10.2.9` → `@serwist/next@^9.0.9` + `serwist@^9.0.9`
+2. **Service Worker**: Defined in `app/sw.ts` instead of config-only approach
+3. **API**: Uses explicit strategy classes (`CacheFirst`, `NetworkFirst`) instead of strings
+4. **Config**: Uses `matcher` instead of `urlPattern` for route matching
+5. **TypeScript**: Full TypeScript support with proper types and intellisense
+
+### Migration Steps Performed
+
+1. Updated `package.json` to replace `@ducanh2912/next-pwa` with `@serwist/next` and `serwist`
+2. Created `app/sw.ts` with custom service worker logic and runtime caching strategies
+3. Updated `next.config.ts` to use `withSerwistInit` from `@serwist/next`
+4. Updated `tsconfig.json` to include Serwist types and webworker lib
+5. Updated `.gitignore` to include Serwist-generated files
+6. Verified production build and PWA functionality
+
+**Migration Date**: December 28, 2025
+
 ## References
 
-- [Next PWA Documentation](https://github.com/DuCanhGH/next-pwa)
+- [Serwist Documentation](https://serwist.pages.dev/docs/next)
+- [Serwist GitHub](https://github.com/serwist/serwist)
+- [Next PWA (Legacy)](https://github.com/DuCanhGH/next-pwa)
 - [Workbox Documentation](https://developer.chrome.com/docs/workbox)
 - [Web App Manifest Spec](https://www.w3.org/TR/appmanifest/)
 - [Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)
@@ -371,5 +435,6 @@ Ensure:
 ---
 
 **Implementation Date**: December 28, 2025  
-**Package**: `@ducanh2912/next-pwa@^1.0.0`  
+**Package**: `@serwist/next@^9.0.9` + `serwist@^9.0.9`  
+**Previous Package**: `@ducanh2912/next-pwa@^10.2.9` (migrated)  
 **Status**: ✅ Production Ready
