@@ -4,10 +4,15 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { ModeToggle } from "@/components/ThemeToggle";
 import { LogoutButton } from "@/components/LogoutButton";
+import { SyncStatusBadge } from "@/components/SyncStatusBadge";
 import { BRANDING } from "@/lib/branding";
+import { useDatabaseSync } from "@/hooks/useDatabaseSync";
 
 export function Header() {
   const pathname = usePathname();
+
+  // Use the custom hook for database sync logic
+  const { isSyncing, error } = useDatabaseSync({ autoSync: true });
 
   // Don't show header on login or offline pages
   if (pathname === "/login" || pathname === "/offline") {
@@ -41,8 +46,9 @@ export function Header() {
             </div>
           </div>
 
-          {/* Theme Toggle and Logout */}
-          <div className="shrink-0 flex items-center gap-2">
+          {/* Sync Status, Theme Toggle and Logout */}
+          <div className="shrink-0 flex items-center gap-3">
+            <SyncStatusBadge isSyncing={isSyncing} error={error} />
             <ModeToggle />
             <LogoutButton />
           </div>

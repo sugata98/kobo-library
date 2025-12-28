@@ -2,6 +2,18 @@
 
 This directory contains the FastAPI backend service for syncing with B2 Cloud and parsing KoboReader.sqlite.
 
+## 🔄 Automatic Database Sync
+
+The service automatically keeps the database up-to-date with **zero user action required**:
+
+- **🚀 Startup Check**: Compares timestamps and downloads newer version on every service start/restart
+- **🔔 B2 Webhooks** (optional): Real-time sync when database is uploaded to B2
+- **🔄 Auto-sync Fallback**: Downloads database if local cache is missing
+
+**📖 See [DATABASE_SYNC.md](../docs/DATABASE_SYNC.md) for complete setup guide and architecture details.**
+
+**Quick Start:** No configuration needed! Startup check is already active and will sync automatically on service restarts.
+
 ## Book Cover Service
 
 The service fetches book covers from multiple free APIs with the following priority:

@@ -10,8 +10,7 @@ import logging
 import urllib.parse
 import requests
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Get logger (logging will be configured in main.py startup)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
