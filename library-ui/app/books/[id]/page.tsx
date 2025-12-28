@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/empty";
 import { Highlighter, ImageIcon, BookOpen } from "lucide-react";
 import { BRANDING } from "@/lib/branding";
+import { getHighlightColor } from "@/lib/highlightColors";
 
 export default function BookDetails({
   params,
@@ -227,7 +228,10 @@ export default function BookDetails({
                   ([chapter, items]) => (
                     <div key={chapter} className="space-y-3">
                       {/* Chapter header */}
-                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 py-3 px-4 -mx-4 z-50 border-b border-border/40 shadow-sm">
+                      <div
+                        className="sticky bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 py-3 z-40 border-b border-border/40 shadow-sm px-4 md:px-8 lg:px-6 -mx-4 md:-mx-8 lg:mx-0"
+                        style={{ top: "var(--header-height)" }}
+                      >
                         <div className="flex items-center gap-2">
                           <BookOpen className="h-4 w-4 text-primary shrink-0" />
                           <h3 className="text-sm font-semibold text-foreground tracking-wide flex-1">
@@ -240,45 +244,49 @@ export default function BookDetails({
                       </div>
 
                       {/* Chapter items */}
-                      {items.map((h: any, idx: number) => (
-                        <Card
-                          key={h.BookmarkID}
-                          className="hover:shadow-lg transition-shadow overflow-hidden"
-                        >
-                          <div className="relative">
-                            <CardContent className="pt-4 md:pt-6 pb-10 md:pb-12">
-                              <blockquote className="border-l-4 border-primary pl-4 italic">
-                                &ldquo;{h.Text}&rdquo;
-                              </blockquote>
-                            </CardContent>
+                      {items.map((h: any, idx: number) => {
+                        const colorConfig = getHighlightColor(h.Color);
+                        return (
+                          <Card
+                            key={h.BookmarkID}
+                            className="hover:shadow-lg transition-shadow overflow-hidden"
+                          >
+                            <div className="relative">
+                              <CardContent className="pt-4 md:pt-6 pb-10 md:pb-12">
+                                <blockquote
+                                  className={`border-l-4 pl-4 italic ${colorConfig.borderClass} ${colorConfig.bgClass} py-2 rounded-r-md`}
+                                >
+                                  &ldquo;{h.Text}&rdquo;
+                                </blockquote>
+                              </CardContent>
 
-                            {/* Bottom overlay with metadata */}
-                            <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-auto">
-                              <div className="py-2 md:py-2.5 bg-linear-to-t from-background via-background/60 via-30% to-transparent">
-                                <div className="flex items-center justify-between gap-2 px-6">
-                                  <LocationIndicator
-                                    index={idx + 1}
-                                    total={items.length}
-                                    chapterName={null}
-                                    chapterProgress={h.TrueChapterProgress}
-                                    className="flex-1 min-w-0"
-                                  />
-                                  <div className="text-xs text-muted-foreground shrink-0 font-medium">
-                                    {new Date(h.DateCreated).toLocaleDateString(
-                                      "en-US",
-                                      {
+                              {/* Bottom overlay with metadata */}
+                              <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-auto">
+                                <div className="py-2 md:py-2.5 bg-linear-to-t from-background via-background/60 via-30% to-transparent">
+                                  <div className="flex items-center justify-between gap-2 px-6">
+                                    <LocationIndicator
+                                      index={idx + 1}
+                                      total={items.length}
+                                      chapterName={null}
+                                      chapterProgress={h.TrueChapterProgress}
+                                      className="flex-1 min-w-0"
+                                    />
+                                    <div className="text-xs text-muted-foreground shrink-0 font-medium">
+                                      {new Date(
+                                        h.DateCreated
+                                      ).toLocaleDateString("en-US", {
                                         month: "short",
                                         day: "numeric",
                                         year: "numeric",
-                                      }
-                                    )}
+                                      })}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        </Card>
-                      ))}
+                          </Card>
+                        );
+                      })}
                     </div>
                   )
                 );
@@ -319,7 +327,10 @@ export default function BookDetails({
                   ([chapter, items]) => (
                     <div key={chapter} className="space-y-3">
                       {/* Chapter header */}
-                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 py-3 px-4 -mx-4 z-50 border-b border-border/40 shadow-sm">
+                      <div
+                        className="sticky bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 py-3 z-40 border-b border-border/40 shadow-sm px-4 md:px-8 lg:px-6 -mx-4 md:-mx-8 lg:mx-0"
+                        style={{ top: "var(--header-height)" }}
+                      >
                         <div className="flex items-center gap-2">
                           <BookOpen className="h-4 w-4 text-primary shrink-0" />
                           <h3 className="text-sm font-semibold text-foreground tracking-wide flex-1">

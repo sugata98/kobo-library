@@ -8,14 +8,14 @@ import { BRANDING } from "@/lib/branding";
 
 export function Header() {
   const pathname = usePathname();
-  
+
   // Don't show header on login or offline pages
   if (pathname === "/login" || pathname === "/offline") {
     return null;
   }
 
   return (
-    <header className="bg-card border-b border-border shadow-sm">
+    <header className="bg-card border-b border-border shadow-sm sticky top-0 z-50">
       <div className="px-4 sm:px-8 lg:px-24 py-4">
         <div className="flex items-center justify-between gap-4">
           {/* Logo */}
@@ -51,4 +51,3 @@ export function Header() {
     </header>
   );
 }
-
