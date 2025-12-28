@@ -84,7 +84,7 @@ export default function LazyMarkupImage({
     >
       {/* Optional overlay content */}
       {overlay && (
-        <div className="absolute bottom-0 left-0 right-0 z-40 pointer-events-auto">
+        <div className="absolute bottom-0 left-0 right-0 z-[35] pointer-events-auto">
           {overlay}
         </div>
       )}
