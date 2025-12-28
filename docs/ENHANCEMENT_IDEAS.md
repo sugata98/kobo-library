@@ -178,21 +178,125 @@ Based on comprehensive database schema analysis, here are feature suggestions or
 - **Benefits**: Better UX, accessibility
 - **Implementation**: React context + localStorage persistence
 
+## 🔮 **FUTURE ROADMAP**
+
+### 18. **AI-Powered Features**
+
+#### 18.1 AI Recaps for Highlights
+
+- **Data Available**: All highlights and annotations per book
+- **Feature**: AI-generated summaries and insights from user highlights
+  - Automatic recap generation from highlights
+  - Key themes and patterns identification
+  - Smart grouping of related highlights
+  - TL;DR summaries per chapter based on user's highlights
+  - Personalized insights ("You highlighted X times about [topic]")
+- **Benefits**:
+  - Quick review of book's key takeaways
+  - Discover patterns in reading interests
+  - Better retention through AI-curated summaries
+  - Time-saving for review sessions
+- **Implementation**:
+  - Integration with LLM APIs (OpenAI/Anthropic/local models)
+  - Prompt engineering for highlight summarization
+  - Caching layer for generated recaps
+  - User control over AI features (opt-in/opt-out)
+- **Technical Considerations**:
+  - Privacy-first approach (option for local/on-device AI)
+  - Rate limiting and cost management for API calls
+  - Fallback mechanisms for offline usage
+
+### 19. **UI Upliftment**
+
+#### 19.1 Timeline View in Books
+
+- **Data Available**: `Bookmark.DateCreated`, reading sessions, chapter positions
+- **Feature**: Enhanced chronological timeline visualization within book detail pages
+  - Interactive timeline showing highlights/markups in chronological order
+  - Visual representation of reading progress over time
+  - Jump to specific dates/reading sessions
+  - Daily/weekly/monthly view modes
+  - Visual markers for annotations vs simple highlights
+- **Benefits**:
+  - Understand reading journey through a book
+  - Track evolution of thoughts over time
+  - Quick navigation to specific reading sessions
+  - Nostalgic review of past reading experiences
+- **Implementation**:
+  - Timeline component with date range selector
+  - Interactive date picker with highlight density indicators
+  - Smooth scrolling/animations for date navigation
+  - Integration with existing book detail view
+
+#### 19.2 Sidebar with Chapters in Books
+
+- **Data Available**: Chapter structure from `content` table (Depth = 1)
+- **Feature**: Collapsible sidebar navigation for book chapters
+  - Hierarchical chapter listing
+  - Highlight count per chapter
+  - Active chapter indicator based on scroll position
+  - Quick jump to any chapter's highlights
+  - Chapter progress indicators
+  - Search within chapters
+- **Benefits**:
+  - Better navigation for long books
+  - Overview of book structure at a glance
+  - Quick access to specific chapters
+  - Visual indication of most-highlighted sections
+- **Implementation**:
+  - Responsive sidebar (collapsible on mobile)
+  - Sticky/fixed positioning for easy access
+  - Auto-highlighting of active chapter on scroll
+  - Integration with existing chapter-based grouping
+  - Smooth scroll-to-section functionality
+
+### 20. **Authentication Enhancements**
+
+#### 20.1 Passkey Support (Web & PWA)
+
+- **Current**: Token-based authentication
+- **Feature**: WebAuthn/Passkey authentication support
+  - Passwordless login with passkeys
+  - Biometric authentication (Face ID, Touch ID, Windows Hello)
+  - Hardware security key support
+  - Multiple passkey registration per user
+  - Fallback to traditional authentication
+  - Cross-device passkey sync (platform-dependent)
+- **Benefits**:
+  - Enhanced security (phishing-resistant)
+  - Better UX (no password to remember)
+  - Faster login on repeated devices
+  - Modern, friction-free authentication
+  - Improved PWA experience with biometrics
+- **Implementation**:
+  - WebAuthn API integration
+  - Backend passkey storage and verification
+  - @simplewebauthn/server and @simplewebauthn/browser libraries
+  - Credential management UI
+  - Progressive enhancement (passkeys as optional add-on)
+  - Testing across browsers and devices
+- **Technical Considerations**:
+  - Fallback authentication methods
+  - Passkey recovery mechanisms
+  - User education/onboarding for passkeys
+  - Browser compatibility handling
+  - Secure credential storage backend
+
 ## 📋 **Technical Improvements**
 
-### 18. **Caching Layer**
+### 21. **Caching Layer**
 
 - **Problem**: Database queries on every page load
 - **Solution**: Redis/in-memory cache for book list, highlights
 - **Benefits**: Faster load times, reduced database load
 
-### 19. **Pagination**
+### 22. **Pagination**
 
 - **Problem**: Large books with 100+ highlights load slowly
 - **Solution**: Paginate highlights/markups (20-50 per page)
 - **Benefits**: Better performance, faster initial render
 
-### 20. **Real-time Database Sync**
+### 23. **Real-time Database Sync**
 
 - **Current**: Manual sync from B2
 - **Feature**: Auto-sync on schedule or webhook from KoSync
