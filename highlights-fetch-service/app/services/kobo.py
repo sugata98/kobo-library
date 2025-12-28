@@ -226,6 +226,7 @@ class KoboService:
                 b.ChapterProgress,
                 b.StartContainerPath,
                 b.Color,
+                b.Type,
                 c.Title as SectionTitle,
                 c.VolumeIndex,
                 c.ContentID,
@@ -241,7 +242,7 @@ class KoboService:
                 ) as ChapterName
             FROM Bookmark b
             LEFT JOIN content c ON c.ContentID = b.ContentID
-            WHERE b.VolumeID = ? AND b.Type = 'highlight'
+            WHERE b.VolumeID = ? AND (b.Type = 'highlight' OR b.Type = 'note')
             ORDER BY b.DateCreated
         """
         cursor.execute(query, (book_id,))

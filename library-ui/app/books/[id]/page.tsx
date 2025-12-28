@@ -18,7 +18,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Highlighter, ImageIcon, BookOpen } from "lucide-react";
+import {
+  Highlighter,
+  ImageIcon,
+  BookOpen,
+  StickyNote,
+  Pencil,
+} from "lucide-react";
 import { BRANDING } from "@/lib/branding";
 import { getHighlightColor } from "@/lib/highlightColors";
 
@@ -206,6 +212,26 @@ export default function BookDetails({
               <Badge variant="outline" className="text-xs font-medium">
                 {highlights.length}
               </Badge>
+              {highlights.filter(
+                (h: any) =>
+                  h.Type === "note" ||
+                  (h.Annotation && h.Annotation.trim().length > 0)
+              ).length > 0 && (
+                <Badge
+                  variant="default"
+                  className="text-xs font-medium flex items-center gap-1"
+                >
+                  <StickyNote className="h-3 w-3" />
+                  {
+                    highlights.filter(
+                      (h: any) =>
+                        h.Type === "note" ||
+                        (h.Annotation && h.Annotation.trim().length > 0)
+                    ).length
+                  }{" "}
+                  with notes
+                </Badge>
+              )}
             </Badge>
           </div>
           <div className="space-y-6">
@@ -246,6 +272,9 @@ export default function BookDetails({
                       {/* Chapter items */}
                       {items.map((h: any, idx: number) => {
                         const colorConfig = getHighlightColor(h.Color);
+                        const hasNote =
+                          h.Annotation && h.Annotation.trim().length > 0;
+                        const isStandaloneNote = h.Type === "note";
                         return (
                           <Card
                             key={h.BookmarkID}
@@ -253,10 +282,45 @@ export default function BookDetails({
                           >
                             <div className="relative">
                               <CardContent className="pt-4 md:pt-6 pb-10 md:pb-12">
+                                {/* Display highlighted text or note context */}
                                 <blockquote
-                                  className={`border-l-4 pl-4 italic ${colorConfig.borderClass} ${colorConfig.bgClass} py-2 rounded-r-md`}
+                                  className={`border-l-4 pl-4 ${
+                                    isStandaloneNote
+                                      ? "border-primary/40 bg-primary/5"
+                                      : `${colorConfig.borderClass} ${colorConfig.bgClass}`
+                                  } py-3 rounded-r-md`}
                                 >
-                                  &ldquo;{h.Text}&rdquo;
+                                  {h.Text && h.Text.trim() && (
+                                    <div
+                                      className={
+                                        !isStandaloneNote ? "italic" : ""
+                                      }
+                                    >
+                                      {isStandaloneNote ? (
+                                        <span className="text-foreground/90">
+                                          {h.Text}
+                                        </span>
+                                      ) : (
+                                        <span>&ldquo;{h.Text}&rdquo;</span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Display annotation/note if available */}
+                                  {hasNote && (
+                                    <div className="mt-3 pt-3 border-t border-border/40">
+                                      <p className="text-sm text-foreground/90 leading-relaxed">
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-xs font-medium inline-flex items-center gap-1 mr-1.5 align-baseline"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                          Note
+                                        </Badge>
+                                        {h.Annotation}
+                                      </p>
+                                    </div>
+                                  )}
                                 </blockquote>
                               </CardContent>
 
