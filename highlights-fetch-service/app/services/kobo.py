@@ -225,6 +225,7 @@ class KoboService:
                 b.DateCreated, 
                 b.ChapterProgress,
                 b.StartContainerPath,
+                b.Color,
                 c.Title as SectionTitle,
                 c.VolumeIndex,
                 c.ContentID,
