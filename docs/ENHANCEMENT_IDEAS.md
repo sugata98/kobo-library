@@ -4,7 +4,7 @@ Based on comprehensive database schema analysis, here are feature suggestions or
 
 ## 🎨 **HIGH PRIORITY - Quick Wins**
 
-### 1. **Highlight Color Categorization**
+### 1. ~~**Highlight Color Categorization**~~ ✅
 
 - **Data Available**: `Bookmark.Color` field (values: 0, 1, 3)
 - **Feature**: Display highlights with color-coded borders/backgrounds matching Kobo's color system
@@ -12,7 +12,7 @@ Based on comprehensive database schema analysis, here are feature suggestions or
   - Visual differentiation between highlight types
   - Users often color-code by importance/category
   - Filter/group by color
-- **Implementation**: Update `LocationIndicator` component with color-based styling
+- **Implementation**: ~~Update `LocationIndicator` component with color-based styling~~ **COMPLETED**
 
 ### 2. **Reading Timeline**
 
@@ -108,15 +108,18 @@ Based on comprehensive database schema analysis, here are feature suggestions or
 - **Benefits**: Understand highlight context without re-reading
 - **Implementation**: Backend EPUB parsing + frontend display
 
-### 10. **Highlight Annotations & Notes**
+### 10. ~~**Highlight Annotations & Notes**~~ ✅
 
 - **Data Available**: `Bookmark.Annotation` (already captured)
 - **Feature**:
   - Display user notes attached to highlights
+  - Display standalone notes (Type='note')
   - Count highlights with notes
-  - Filter by "has notes"
+  - ~~Filter by "has notes"~~
 - **Benefits**: Surface user's thoughts alongside highlights
-- **Implementation**: Show annotation text in highlight cards
+- **Implementation**: ~~Show annotation text in highlight cards~~ **COMPLETED**
+  - Notes displayed inline with badge and proper formatting
+  - Includes both highlights with annotations AND standalone notes
 
 ### 11. **Reading Statistics Page**
 
@@ -171,12 +174,12 @@ Based on comprehensive database schema analysis, here are feature suggestions or
 - **Benefits**: Social engagement, sharing insights
 - **Implementation**: Image generation service (canvas/puppeteer)
 
-### 17. **Dark/Light Mode Toggle**
+### 17. ~~**Dark/Light Mode Toggle**~~ ✅
 
 - **Current**: Tailwind dark mode classes present
 - **Feature**: User-controlled theme toggle
 - **Benefits**: Better UX, accessibility
-- **Implementation**: React context + localStorage persistence
+- **Implementation**: ~~React context + localStorage persistence~~ **COMPLETED**
 
 ## 🔮 **FUTURE ROADMAP**
 
