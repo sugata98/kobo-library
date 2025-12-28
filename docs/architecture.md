@@ -27,12 +27,16 @@
 
 The system follows a **client-server architecture** with clear separation between:
 
-1. **Frontend (Next.js)**: React-based web application for browsing and organizing highlights
+1. **Frontend (Next.js PWA)**: React-based Progressive Web App for browsing and organizing highlights
+   - Service Worker for offline caching and NetworkFirst strategy
+   - Installable on desktop and mobile devices
+   - Smart caching for optimal performance
 2. **Backend (FastAPI)**: RESTful API service for data synchronization, parsing, and retrieval
 3. **Storage Layer**:
    - Backblaze B2 (cloud storage for database and markups)
    - Local SQLite (temporary database cache)
    - B2 Covers Cache (optional separate bucket for cover images)
+   - Service Worker Cache (client-side caching for offline access)
 4. **External Dependencies**:
    - Book cover APIs (bookcover-api, Open Library, Google Books)
    - Authentication (JWT-based, single-user)
@@ -321,27 +325,57 @@ graph TB
 
 ## 4. Data Flow
 
-### 4.1 Initial Sync Flow
+### 4.1 Backend Auto-Sync Flow
+
+The backend automatically syncs the Kobo database from B2:
+
+- **On startup**: Backend downloads `KoboReader.sqlite` from B2
+- **On-demand**: If database not found, auto-downloads on first API call
+- **Manual trigger**: `POST /api/sync` endpoint exists but not exposed in UI
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Frontend
     participant Backend
     participant B2
     participant SQLite
 
-    User->>Frontend: Click "Sync Data"
-    Frontend->>Backend: POST /api/sync (with JWT cookie)
-    Backend->>Backend: Verify JWT token
+    Note over Backend: Backend Startup
     Backend->>B2: Download kobo/KoboReader.sqlite
     B2-->>Backend: Database file
     Backend->>SQLite: Save to /tmp/KoboReader.sqlite
-    Backend-->>Frontend: {"message": "Database synced successfully"}
-    Frontend-->>User: Show success message
+    Backend->>Backend: Ready to serve requests
 ```
 
-### 4.2 Book List Retrieval Flow
+### 4.2 PWA Data Freshness Flow
+
+The PWA uses **NetworkFirst** strategy to ensure fresh data:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant PWA
+    participant ServiceWorker
+    participant Backend
+    participant Cache
+
+    User->>PWA: Open app / Navigate
+    PWA->>ServiceWorker: Request data (e.g., /api/books)
+    ServiceWorker->>Backend: Try network first (10s timeout)
+
+    alt Online & Backend reachable
+        Backend-->>ServiceWorker: Fresh data ✅
+        ServiceWorker->>Cache: Update cache (5 min expiry)
+        ServiceWorker-->>PWA: Return fresh data
+    else Offline or timeout
+        ServiceWorker->>Cache: Fetch from cache
+        Cache-->>ServiceWorker: Cached data (if exists)
+        ServiceWorker-->>PWA: Return cached data
+    end
+
+    PWA-->>User: Display data
+```
+
+### 4.3 Book List Retrieval Flow
 
 ```mermaid
 sequenceDiagram
@@ -367,7 +401,7 @@ sequenceDiagram
     Frontend-->>User: Display books
 ```
 
-### 4.3 Cover Image Fetching Flow
+### 4.4 Cover Image Fetching Flow
 
 ```mermaid
 sequenceDiagram
@@ -422,7 +456,7 @@ sequenceDiagram
     Frontend->>Frontend: Display cover (browser caches for 30 days)
 ```
 
-### 4.3 Highlight/Markup Retrieval Flow
+### 4.5 Highlight/Markup Retrieval Flow
 
 ```mermaid
 sequenceDiagram
@@ -472,6 +506,7 @@ sequenceDiagram
 - **Service-Oriented Design**: Reusable services (B2Service, CoverService, KoboService) can be easily tested and extended
 - **RESTful API**: Standard HTTP methods and resource-based URLs make the API intuitive
 - **Type Safety**: Pydantic models and TypeScript provide compile-time validation
+- **Progressive Web App**: Full PWA implementation with service worker, offline support, and installability across all platforms
 
 ### 5.2 Security
 
@@ -483,11 +518,16 @@ sequenceDiagram
 ### 5.3 Performance
 
 - **Multi-Worker Backend**: Configured with 4 workers, enabling 4× concurrent request handling for I/O-bound operations (markup JPGs, B2 downloads, external API calls)
-- **Caching Strategy**: Multi-layer caching (B2 cache → browser cache) reduces external API calls
+- **PWA with Service Worker**: NetworkFirst strategy ensures fresh data when online, instant loading from cache when offline
+- **Smart Caching**: Multi-layer caching (Service Worker → B2 cache → browser cache) with optimal expiry times:
+  - API responses: 5 minutes (fresh data, short cache)
+  - Images: 30 days (static content, long cache)
+  - Fonts: 1 year (rarely change)
 - **Streaming**: Large markup JPGs are streamed in chunks to reduce memory usage
-- **Auto-Sync**: Database is downloaded on-demand, reducing unnecessary B2 operations
+- **Auto-Sync**: Database is downloaded on startup and on-demand, reducing unnecessary B2 operations
 - **Progressive Loading**: Markups load JPG first, then overlay SVG for better UX
 - **Lazy Loading**: Frontend implements lazy loading for book covers and markups, reducing initial bandwidth by 80-90%
+- **Offline-First**: Installed PWA works offline with cached content
 
 ### 5.4 Scalability (Current Context)
 
@@ -638,11 +678,12 @@ sequenceDiagram
 
 #### 7.3.3 Caching Layer
 
-- **Current**: B2 cache + browser cache
+- **Current**: PWA Service Worker + B2 cache + browser cache
 - **Proposal**:
-  - Add Redis for API response caching (books list, highlights)
+  - Add Redis for server-side API response caching (books list, highlights)
   - CDN for cover images (Cloudflare, CloudFront)
-- **Benefit**: Reduce backend load, faster response times
+  - Consider IndexedDB for large offline data storage
+- **Benefit**: Reduce backend load, faster response times, better offline experience
 
 #### 7.3.4 Feature Scaling
 

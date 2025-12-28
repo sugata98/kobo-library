@@ -11,6 +11,16 @@ Readr helps you:
 - **Revisit** highlights and annotations from your Kobo reading sessions
 - **Organize** insights by book, chapter, and timeline
 - **Reflect** on your reading journey and connect ideas across books
+- **Access offline** - fully-functional Progressive Web App (PWA) with offline support
+
+## Features
+
+- 📱 **Progressive Web App** - Install on any device (desktop, mobile, tablet)
+- 🔄 **Offline Support** - Access your books and highlights without internet
+- ⚡ **Lightning Fast** - Aggressive caching for instant page loads
+- 🎨 **Modern UI** - Clean, minimal interface with dark mode
+- 🔐 **Secure** - Optional authentication to protect your personal data
+- 📚 **Rich Metadata** - View book details, chapters, and reading progress
 
 ## Structure
 
@@ -28,6 +38,7 @@ Readr helps you:
 
 1. **Configure Backend Environment**:
    Create `highlights-fetch-service/.env` based on `highlights-fetch-service/example.env`:
+
    ```bash
    cp highlights-fetch-service/example.env highlights-fetch-service/.env
    # Edit highlights-fetch-service/.env with your B2 credentials and authentication settings
@@ -35,8 +46,9 @@ Readr helps you:
 
 2. **Set Up Authentication** (Recommended):
    Readr includes authentication to protect your personal reading data. See [AUTHENTICATION_SETUP.md](./AUTHENTICATION_SETUP.md) for detailed instructions.
-   
+
    Quick start:
+
    ```bash
    # Add to highlights-fetch-service/.env
    AUTH_ENABLED=true
@@ -99,17 +111,20 @@ npm run dev
 3. **Add Environment Variables:**
 
    **Required:**
+
    - `B2_APPLICATION_KEY_ID`: Your Backblaze B2 Application Key ID
    - `B2_APPLICATION_KEY`: Your Backblaze B2 Application Key
    - `B2_BUCKET_NAME`: Your B2 bucket name (e.g., `KoboSync`)
-   
+
    **Authentication (Recommended):**
+
    - `AUTH_ENABLED`: `true` (enable authentication)
    - `AUTH_USERNAME`: Your username for login
    - `AUTH_PASSWORD`: Your secure password
    - `JWT_SECRET_KEY`: Random secret key for JWT signing (generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`)
-   
+
    **Optional:**
+
    - `LOCAL_DB_PATH`: `/tmp/KoboReader.sqlite` (default)
    - `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`: `43200` (30 days, default)
 
@@ -174,15 +189,22 @@ vercel
    - Redeploy frontend if needed
 
 2. **Test the Deployment:**
+
    - Visit your Vercel URL
    - Click "Sync Data" to test B2 connection
    - Verify books and markups load correctly
+
+3. **Install as PWA:**
+   - On desktop: Look for install icon in browser address bar
+   - On mobile: Use "Add to Home Screen" from browser menu
+   - Enjoy offline access to your highlights!
 
 ## Authentication
 
 Readr includes built-in authentication to protect your personal reading data (highlights, annotations, markups) from public access.
 
 **Features:**
+
 - 🔒 Password-protected access
 - 🍪 Secure httpOnly cookies (30-day sessions)
 - 🎨 Clean login UI (shadcn blocks)
@@ -191,6 +213,7 @@ Readr includes built-in authentication to protect your personal reading data (hi
 **Setup:** See [AUTHENTICATION_SETUP.md](./AUTHENTICATION_SETUP.md) for detailed instructions.
 
 **Quick Start:**
+
 1. Add authentication env vars to backend (see above)
 2. Deploy backend
 3. Deploy frontend (no changes needed)
@@ -198,12 +221,40 @@ Readr includes built-in authentication to protect your personal reading data (hi
 5. Enter credentials → you're in!
 
 **To disable authentication** (development only):
+
 ```bash
 AUTH_ENABLED=false
 ```
 
+## Getting Latest Highlights
+
+### How Data Syncing Works
+
+1. **Backend syncs on startup**: When the backend starts, it downloads the latest `KoboReader.sqlite` from B2
+2. **PWA caches data**: The frontend caches API responses for 5 minutes for fast loading
+3. **Offline access**: Previously viewed content is available offline
+
+### To See New Highlights
+
+**Option 1: Restart Backend** (for new highlights from Kobo)
+
+```bash
+# Docker
+docker-compose restart
+
+# Or restart your backend service on Render
+```
+
+**Option 2: Browser Refresh** (after backend has latest data)
+
+- Simply reload the page in your browser (⌘+R / Ctrl+R)
+- Clears the API cache and fetches latest data
+
+**Future Enhancement**: A "Sync & Refresh" button could be added to the UI to trigger backend sync without restart.
+
 ## Documentation
 
+- **[PWA_IMPLEMENTATION.md](./docs/PWA_IMPLEMENTATION.md)** - Progressive Web App setup and features
 - **[AUTHENTICATION_SETUP.md](./AUTHENTICATION_SETUP.md)** - Complete authentication setup guide
 - **[AUTHENTICATION_IMPLEMENTATION.md](./AUTHENTICATION_IMPLEMENTATION.md)** - Technical implementation details
 - **[BOOKCOVER_API_INTEGRATION.md](./BOOKCOVER_API_INTEGRATION.md)** - Book cover fetching system
@@ -217,3 +268,5 @@ AUTH_ENABLED=false
 - **CORS errors**: Backend already has CORS enabled for all origins (update in production if needed)
 - **Login not working**: Verify `AUTH_USERNAME`, `AUTH_PASSWORD`, and `JWT_SECRET_KEY` are set correctly
 - **Session expires too quickly**: Increase `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` (default: 30 days)
+- **New highlights not showing**: Restart backend to re-sync from B2, then refresh browser
+- **Offline content outdated**: Clear browser cache or reinstall PWA to fetch fresh data

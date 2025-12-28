@@ -1,6 +1,11 @@
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
+/**
+ * Trigger backend to sync KoboReader.sqlite from B2.
+ * Note: Not currently exposed in UI - backend syncs on startup.
+ * Could be used for manual refresh feature in the future.
+ */
 export async function syncData() {
   const res = await fetch(`${API_BASE_URL}/sync`, {
     method: "POST",
