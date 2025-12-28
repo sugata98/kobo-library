@@ -123,7 +123,7 @@ export default function BookList({
   // Skeleton loader component
   const BookSkeleton = () => (
     <Card className="overflow-hidden flex flex-col h-full">
-      <Skeleton className="w-full aspect-[2/3]" />
+      <Skeleton className="w-full aspect-2/3" />
       <CardContent className="p-0 pt-4 px-4 pb-4 flex-1 flex flex-col">
         <Skeleton className="h-6 w-full mb-2" />
         <Skeleton className="h-6 w-3/4 mb-1" />
@@ -157,7 +157,7 @@ export default function BookList({
                   author={book.Author}
                   isbn={book.ISBN}
                   imageUrl={book.ImageUrl}
-                  className="relative w-full aspect-[2/3] bg-gradient-to-br from-muted to-muted/80 overflow-hidden"
+                  className="relative w-full aspect-2/3 bg-linear-to-br from-muted to-muted/80 overflow-hidden"
                   iconSize="w-16 h-16"
                   showPlaceholderText={true}
                   imageClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

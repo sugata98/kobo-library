@@ -1,4 +1,5 @@
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 interface LocationIndicatorProps {
   index: number; // Sequential index (1-based) of the item
@@ -19,16 +20,16 @@ export default function LocationIndicator({
   chapterProgress,
   className = "",
 }: LocationIndicatorProps) {
-
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      {/* Sequential number badge - simple gray */}
-      <div
-        className="flex items-center justify-center w-8 h-8 rounded-full bg-muted text-muted-foreground font-semibold text-sm shrink-0 border border-border"
+      {/* Sequential number badge */}
+      <Badge
+        variant="secondary"
+        className="flex items-center justify-center size-5 md:size-6 rounded-full font-semibold text-[10px] md:text-xs shrink-0 p-0"
         title={`Item ${index} of ${total}`}
       >
         {index}
-      </div>
+      </Badge>
 
       {/* Chapter name and progress */}
       <div className="flex-1 min-w-0">

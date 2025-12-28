@@ -19,7 +19,7 @@ export default function BookCover({
   author,
   isbn,
   imageUrl,
-  className = "relative w-full aspect-[2/3] max-h-48 bg-gradient-to-br from-muted to-muted/80 overflow-hidden",
+  className = "relative w-full aspect-2/3 max-h-48 bg-linear-to-br from-muted to-muted/80 overflow-hidden",
   iconSize = "w-16 h-16",
   showPlaceholderText = false,
   imageClassName = "w-full h-full object-cover",
