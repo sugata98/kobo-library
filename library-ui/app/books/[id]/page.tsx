@@ -87,7 +87,7 @@ export default function BookDetails({
 
         <div className="flex items-start gap-6 mb-6">
           {/* Book cover skeleton */}
-          <Skeleton className="w-48 aspect-[2/3] rounded-lg" />
+          <Skeleton className="w-48 aspect-2/3 rounded-lg" />
 
           {/* Book info skeleton */}
           <div className="flex-1 space-y-4">
@@ -151,11 +151,11 @@ export default function BookDetails({
               author={bookInfo.Author}
               isbn={bookInfo.ISBN}
               imageUrl={bookInfo.ImageUrl}
-              className="relative w-32 h-48 bg-gradient-to-br from-muted to-muted/80 overflow-hidden rounded-lg shadow-xl hover:shadow-2xl transition-shadow duration-300"
+              className="relative w-32 h-48 bg-linear-to-br from-muted to-muted/80 overflow-hidden rounded-lg shadow-xl hover:shadow-2xl transition-shadow duration-300"
               iconSize="w-12 h-12"
             />
             {/* Gradient glow effect underneath */}
-            <div className="absolute inset-0 -z-10 bg-gradient-to-b from-primary/20 via-primary/10 to-transparent blur-xl translate-y-4 rounded-lg"></div>
+            <div className="absolute inset-0 -z-10 bg-linear-to-b from-primary/20 via-primary/10 to-transparent blur-xl translate-y-4 rounded-lg"></div>
           </div>
         )}
         <div>
@@ -243,33 +243,40 @@ export default function BookDetails({
                       {items.map((h: any, idx: number) => (
                         <Card
                           key={h.BookmarkID}
-                          className="hover:shadow-lg transition-shadow"
+                          className="hover:shadow-lg transition-shadow overflow-hidden"
                         >
-                          <CardContent className="pt-4 md:pt-6">
-                            <div className="flex items-center justify-between gap-4 mb-3">
-                              <LocationIndicator
-                                index={idx + 1}
-                                total={items.length}
-                                chapterName={null}
-                                chapterProgress={h.TrueChapterProgress}
-                                className="flex-1"
-                              />
-                              <div className="text-xs text-muted-foreground shrink-0">
-                                {new Date(h.DateCreated).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  }
-                                )}
+                          <div className="relative">
+                            <CardContent className="pt-4 md:pt-6 pb-10 md:pb-12">
+                              <blockquote className="border-l-4 border-primary pl-4 italic">
+                                &ldquo;{h.Text}&rdquo;
+                              </blockquote>
+                            </CardContent>
+
+                            {/* Bottom overlay with metadata */}
+                            <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-auto">
+                              <div className="py-2 md:py-2.5 bg-linear-to-t from-background via-background/60 via-30% to-transparent">
+                                <div className="flex items-center justify-between gap-2 px-6">
+                                  <LocationIndicator
+                                    index={idx + 1}
+                                    total={items.length}
+                                    chapterName={null}
+                                    chapterProgress={h.TrueChapterProgress}
+                                    className="flex-1 min-w-0"
+                                  />
+                                  <div className="text-xs text-muted-foreground shrink-0 font-medium">
+                                    {new Date(h.DateCreated).toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      }
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-
-                            <blockquote className="border-l-4 border-primary pl-4 italic">
-                              &ldquo;{h.Text}&rdquo;
-                            </blockquote>
-                          </CardContent>
+                          </div>
                         </Card>
                       ))}
                     </div>
@@ -330,13 +337,13 @@ export default function BookDetails({
                           key={m.BookmarkID}
                           className="hover:shadow-lg transition-shadow overflow-hidden"
                         >
-                          <CardContent className="pt-4 md:pt-6">
-                            <LazyMarkupImage
-                              markupId={m.BookmarkID}
-                              priority={idx < 3}
-                              preloadMargin="400px"
-                              overlay={
-                                <div className="flex items-center justify-between gap-2 px-3 py-2 bg-gradient-to-b from-background/90 via-background/70 to-transparent backdrop-blur-sm">
+                          <LazyMarkupImage
+                            markupId={m.BookmarkID}
+                            priority={idx < 3}
+                            preloadMargin="400px"
+                            overlay={
+                              <div className="pb-2 pt-4 md:pb-3 md:pt-8 bg-linear-to-t from-background via-background/60 via-30% to-transparent">
+                                <div className="flex items-center justify-between gap-2 px-3">
                                   <LocationIndicator
                                     index={idx + 1}
                                     total={items.length}
@@ -355,9 +362,9 @@ export default function BookDetails({
                                     )}
                                   </div>
                                 </div>
-                              }
-                            />
-                          </CardContent>
+                              </div>
+                            }
+                          />
                         </Card>
                       ))}
                     </div>

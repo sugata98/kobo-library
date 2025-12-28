@@ -80,20 +80,20 @@ export default function LazyMarkupImage({
   return (
     <div
       ref={containerRef}
-      className="rounded overflow-hidden relative w-full"
+      className="rounded-lg overflow-hidden relative w-full"
     >
       {/* Optional overlay content */}
       {overlay && (
-        <div className="absolute top-0 left-0 right-0 z-40 pointer-events-auto">
+        <div className="absolute bottom-0 left-0 right-0 z-40 pointer-events-auto">
           {overlay}
         </div>
       )}
-      
+
       {!showFallback && (
-        <div className="relative min-h-[200px]">
+        <div className="relative min-h-[200px] bg-muted/20">
           {/* Loader - stays in background, gets covered by JPG when it streams in */}
           {(!shouldLoad || (!jpgLoaded && !jpgError)) && (
-            <div className="absolute inset-0 w-full min-h-[200px] bg-gradient-to-br from-muted to-muted/80 animate-pulse rounded flex items-center justify-center z-0">
+            <div className="absolute inset-0 w-full min-h-[200px] bg-linear-to-br from-muted to-muted/80 animate-pulse rounded-lg flex items-center justify-center z-0">
               <Spinner className="size-8 text-primary" />
               {!shouldLoad && (
                 <span className="absolute bottom-4 text-xs text-muted-foreground">
@@ -142,4 +142,3 @@ export default function LazyMarkupImage({
     </div>
   );
 }
-
