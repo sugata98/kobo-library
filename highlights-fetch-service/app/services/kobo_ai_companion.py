@@ -145,6 +145,64 @@ class KoboAICompanion:
             logger.error(f"Error sending highlight with analysis: {e}", exc_info=True)
             return None
     
+    async def generate_short_summary(
+        self,
+        text: str,
+        book: str,
+        author: str,
+        chapter: Optional[str] = None
+    ) -> str:
+        """
+        Generate a SHORT 1-2 sentence summary for Kobo device display.
+        
+        This is optimized for Kobo's qndb toast notifications which have ~200 char limit.
+        Public API for external modules.
+        
+        Args:
+            text: The highlighted text to analyze
+            book: The book title
+            author: The author name
+            chapter: Optional chapter name
+            
+        Returns:
+            A short summary (1-2 sentences, max 200 chars)
+        """
+        try:
+            chapter_context = f" (from {chapter})" if chapter else ""
+            
+            # Prompt for very short summary
+            prompt = f"""You are a concise reading companion. 
+
+Book: "{book}" by {author}{chapter_context}
+
+Highlighted Text:
+"{text}"
+
+Provide a ONE SENTENCE summary (max 150 characters) explaining the KEY concept or main idea. Be concise and clear."""
+
+            # Generate response
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.text_model,
+                contents=prompt
+            )
+            
+            if not response or not response.text:
+                logger.warning("Empty response from Gemini for short summary")
+                return "Sent detailed analysis to Telegram!"
+            
+            summary = response.text.strip()
+            
+            # Ensure it's actually short (qndb limit)
+            if len(summary) > 200:
+                summary = summary[:197] + "..."
+            
+            return summary
+            
+        except Exception as e:
+            logger.error(f"Error generating short summary: {e}", exc_info=True)
+            return "Sent analysis to Telegram!"
+    
     async def _generate_analysis(
         self,
         text: str,
@@ -218,7 +276,10 @@ If it's fiction or non-technical, provide literary or thematic analysis instead.
     ) -> Optional[bytes]:
         """
         Attempt to generate a helpful diagram for the highlighted text.
-        Uses gemini-2.5-flash-image which automatically decides if an image would be beneficial.
+        
+        Strategy depends on the model:
+        - If using gemini-2.5-flash-image: Direct image generation (photorealistic/artistic)
+        - Otherwise: Generate Mermaid code → Convert to PNG (technical diagrams)
         
         Args:
             text: The highlighted text
@@ -227,32 +288,48 @@ If it's fiction or non-technical, provide literary or thematic analysis instead.
             analysis: The text analysis already generated
             
         Returns:
-            Image bytes if generated, None otherwise
+            Image bytes (PNG) if generated, None otherwise
         """
         if not self.image_model:
             return None
         
+        # Determine approach based on model
+        if "2.5-flash-image" in self.image_model.lower() or "imagen" in self.image_model.lower():
+            return await self._generate_direct_image(text, book, author, analysis)
+        else:
+            return await self._generate_mermaid_diagram(text, book, author, analysis)
+    
+    async def _generate_direct_image(
+        self,
+        text: str,
+        book: str,
+        author: str,
+        analysis: str
+    ) -> Optional[bytes]:
+        """
+        Generate image directly using Gemini 2.5 Flash Image or Imagen.
+        Best for photorealistic/artistic images.
+        """
         try:
-            # Create a prompt that asks Gemini to generate an image IF it would be helpful
+            # Prompt for technical diagram generation
             image_prompt = f"""Based on this highlighted text from "{book}" by {author}:
 
 "{text}"
 
 Analysis: {analysis[:300]}...
 
-**Task**: If this concept would benefit from a visual diagram, generate a clear technical illustration.
+Create a clean, professional technical diagram that illustrates this concept. The diagram should:
+- Be simple and clear
+- Use a whiteboard or technical drawing style
+- Include labeled components
+- Be easy to understand at a glance
+- Focus on the core concept
 
-Generate an image ONLY if it would genuinely help understanding (e.g., for system architectures, data structures, algorithms, workflows, comparisons, mathematical concepts).
+Only generate an image if this concept would genuinely benefit from visualization (system architectures, data flows, algorithms, etc.).
 
-If an image would help, create:
-- A clean, professional technical diagram
-- Simple, clear visual representation
-- Labeled components
-- Easy to understand at a glance
+If a diagram wouldn't add value, respond with text "SKIP" instead."""
 
-If this concept doesn't benefit from visualization (e.g., it's a simple definition, quote, or abstract idea), respond with just text saying "No image needed" instead of generating an image."""
-
-            # Use gemini-2.5-flash-image which can generate images
+            # Generate image using Gemini 2.5 Flash Image
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
                 model=self.image_model,
@@ -260,21 +337,120 @@ If this concept doesn't benefit from visualization (e.g., it's a simple definiti
             )
             
             if not response or not response.parts:
-                logger.info("No image generated by Gemini (likely decided it wasn't beneficial)")
+                logger.info("No response from Gemini image generation")
                 return None
             
             # Check if response contains an image
             for part in response.parts:
                 if hasattr(part, 'inline_data') and part.inline_data:
-                    logger.info("✅ Image generated successfully by Gemini")
+                    logger.info(f"✅ Image generated successfully by {self.image_model}")
                     return part.inline_data.data
             
-            # If we get here, Gemini responded with text only (decided not to generate image)
-            logger.info(f"Gemini decided not to generate image: {response.text[:100] if response.text else 'No text'}")
+            # Check if Gemini decided to skip
+            if response.text and "SKIP" in response.text.upper():
+                logger.info("Gemini decided this concept doesn't need a visual")
+                return None
+            
+            logger.info(f"No image in response from {self.image_model}")
             return None
             
         except Exception as e:
-            logger.error(f"Error generating image: {e}", exc_info=True)
+            logger.error(f"Error generating direct image: {e}", exc_info=True)
+            return None
+    
+    async def _generate_mermaid_diagram(
+        self,
+        text: str,
+        book: str,
+        author: str,
+        analysis: str
+    ) -> Optional[bytes]:
+        """
+        Generate Mermaid diagram code and convert to PNG.
+        Best for technical diagrams, flowcharts, system architectures.
+        """
+        
+        try:
+            import urllib.parse
+            import base64
+            import aiohttp
+            
+            # Ask Gemini to generate Mermaid diagram code
+            mermaid_prompt = f"""Based on this highlighted text from "{book}" by {author}:
+
+"{text}"
+
+Analysis: {analysis[:300]}...
+
+**Task**: Determine if this concept would benefit from a visual diagram. If YES, generate valid Mermaid diagram code.
+
+Generate Mermaid code ONLY if it would genuinely help understanding:
+- System architectures
+- Data structures
+- Algorithms / Flowcharts
+- Workflows / Processes
+- Comparisons / Relationships
+- Database schemas
+
+If a diagram would help, respond with ONLY the Mermaid code (starting with ```mermaid).
+If visualization wouldn't add value, respond with exactly: "SKIP"
+
+Keep the diagram simple, clear, and focused on the core concept."""
+
+            # Generate Mermaid code using text model
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.image_model,  # Using image_model setting but it's still a text model
+                contents=mermaid_prompt
+            )
+            
+            if not response or not response.text:
+                logger.info("No response from Gemini for diagram generation")
+                return None
+            
+            response_text = response.text.strip()
+            
+            # Check if Gemini decided to skip
+            if response_text.upper() == "SKIP" or "SKIP" in response_text.upper()[:20]:
+                logger.info("Gemini decided this concept doesn't need a diagram")
+                return None
+            
+            # Extract Mermaid code from response
+            mermaid_code = None
+            if "```mermaid" in response_text:
+                # Extract code block
+                start = response_text.find("```mermaid") + 10
+                end = response_text.find("```", start)
+                if end > start:
+                    mermaid_code = response_text[start:end].strip()
+            elif response_text.startswith("graph") or response_text.startswith("flowchart") or response_text.startswith("sequenceDiagram"):
+                # Raw Mermaid code without markdown
+                mermaid_code = response_text
+            
+            if not mermaid_code:
+                logger.info(f"No valid Mermaid code found in response: {response_text[:200]}")
+                return None
+            
+            logger.info(f"Generated Mermaid code ({len(mermaid_code)} chars)")
+            
+            # Convert Mermaid code to image using mermaid.ink
+            # This is a free public service that renders Mermaid diagrams
+            encoded_mermaid = base64.b64encode(mermaid_code.encode('utf-8')).decode('utf-8')
+            mermaid_url = f"https://mermaid.ink/img/{encoded_mermaid}"
+            
+            # Download the rendered image
+            async with aiohttp.ClientSession() as session:
+                async with session.get(mermaid_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        image_bytes = await resp.read()
+                        logger.info(f"✅ Successfully rendered Mermaid diagram to PNG ({len(image_bytes)} bytes)")
+                        return image_bytes
+                    else:
+                        logger.warning(f"Failed to render Mermaid diagram: HTTP {resp.status}")
+                        return None
+            
+        except Exception as e:
+            logger.error(f"Error generating diagram: {e}", exc_info=True)
             return None
     
     async def handle_conversation(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

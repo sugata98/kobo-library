@@ -20,3 +20,4 @@ python-multipart==0.0.21           # Form data parsing for FastAPI
 # Kobo AI Companion - Telegram Bot & AI
 python-telegram-bot>=20.0,<22.0    # Telegram bot API (v20+ with ApplicationBuilder pattern and webhook support)
 google-genai>=1.0.0,<2.0.0         # Google Gemini AI (modern Cloud SDK)
+aiohttp>=3.9.0,<4.0.0              # Async HTTP client for Mermaid diagram rendering
