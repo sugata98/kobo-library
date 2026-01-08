@@ -39,7 +39,8 @@ class Settings(BaseSettings):
     
     # Google Gemini AI settings
     GEMINI_API_KEY: Optional[SecretStr] = None  # Google AI Studio API key
-    GEMINI_MODEL: str = "gemini-3-flash-preview"  # Default model for reading companion (Gemini 3 Flash Preview)
+    GEMINI_MODEL: str = "gemini-3-flash-preview"  # Model for text analysis (fast, powerful)
+    GEMINI_IMAGE_MODEL: Optional[str] = "gemini-2.5-flash-image"  # Model for image generation (set to empty string or None to disable)
     
     @field_validator('JWT_SECRET_KEY')
     @classmethod
