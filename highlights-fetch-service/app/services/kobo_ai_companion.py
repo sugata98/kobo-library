@@ -145,6 +145,63 @@ class KoboAICompanion:
             logger.error(f"Error sending highlight with analysis: {e}", exc_info=True)
             return None
     
+    async def _generate_short_summary(
+        self,
+        text: str,
+        book: str,
+        author: str,
+        chapter: Optional[str] = None
+    ) -> str:
+        """
+        Generate a SHORT 1-2 sentence summary for Kobo device display.
+        
+        This is optimized for Kobo's qndb toast notifications which have ~200 char limit.
+        
+        Args:
+            text: The highlighted text to analyze
+            book: The book title
+            author: The author name
+            chapter: Optional chapter name
+            
+        Returns:
+            A short summary (1-2 sentences, max 200 chars)
+        """
+        try:
+            chapter_context = f" (from {chapter})" if chapter else ""
+            
+            # Prompt for very short summary
+            prompt = f"""You are a concise reading companion. 
+
+Book: "{book}" by {author}{chapter_context}
+
+Highlighted Text:
+"{text}"
+
+Provide a ONE SENTENCE summary (max 150 characters) explaining the KEY concept or main idea. Be concise and clear."""
+
+            # Generate response
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.text_model,
+                contents=prompt
+            )
+            
+            if not response or not response.text:
+                logger.warning("Empty response from Gemini for short summary")
+                return "Sent detailed analysis to Telegram!"
+            
+            summary = response.text.strip()
+            
+            # Ensure it's actually short (qndb limit)
+            if len(summary) > 200:
+                summary = summary[:197] + "..."
+            
+            return summary
+            
+        except Exception as e:
+            logger.error(f"Error generating short summary: {e}", exc_info=True)
+            return "Sent analysis to Telegram!"
+    
     async def _generate_analysis(
         self,
         text: str,

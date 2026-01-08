@@ -104,15 +104,15 @@ async def kobo_ask(
     try:
         logger.info(f"Received {request.mode} request from '{request.context.book}' by {request.context.author}")
         
-        # Generate quick explanation (2-3 seconds)
-        explanation = await kobo_companion._generate_analysis(
+        # Generate SHORT summary for Kobo modal (qndb has ~200 char limit)
+        short_summary = await kobo_companion._generate_short_summary(
             text=request.text,
             book=request.context.book,
             author=request.context.author,
             chapter=request.context.chapter
         )
         
-        # Schedule background task: send full analysis to Telegram (with images)
+        # Schedule background task: send FULL analysis to Telegram (with images)
         background_tasks.add_task(
             kobo_companion.send_highlight_with_analysis,
             text=request.text,
@@ -121,10 +121,10 @@ async def kobo_ask(
             chapter=request.context.chapter
         )
         
-        logger.info(f"Returning explanation to Kobo, Telegram update scheduled")
+        logger.info(f"Returning SHORT summary to Kobo ({len(short_summary)} chars), full analysis scheduled for Telegram")
         
-        # Return plain text for Kobo dialog (no JSON, no formatting)
-        return Response(content=explanation, media_type="text/plain")
+        # Return SHORT summary for Kobo dialog (qndb has ~200 char limit)
+        return Response(content=short_summary, media_type="text/plain")
             
     except Exception as e:
         logger.error(f"Error processing Kobo request: {e}", exc_info=True)
