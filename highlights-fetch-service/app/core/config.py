@@ -30,6 +30,17 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"  # Options: "lax", "none", "strict"
     COOKIE_DOMAIN: Optional[str] = None  # Set to parent domain (e.g., ".readr.space") to share across subdomains
     
+    # Kobo AI Companion settings
+    KOBO_API_KEY: Optional[SecretStr] = None  # API key for Kobo device authentication
+    TELEGRAM_BOT_TOKEN: Optional[SecretStr] = None  # Telegram bot API token from @BotFather
+    TELEGRAM_CHAT_ID: Optional[str] = None  # Telegram group/chat ID where highlights are sent
+    TELEGRAM_WEBHOOK_URL: Optional[str] = None  # Public webhook URL for Telegram (e.g., https://your-app.onrender.com)
+    TELEGRAM_ENABLED: bool = False  # Set to True to enable Kobo AI Companion
+    
+    # Google Gemini AI settings
+    GEMINI_API_KEY: Optional[SecretStr] = None  # Google AI Studio API key
+    GEMINI_MODEL: str = "gemini-3-flash-preview"  # Default model for reading companion (Gemini 3 Flash Preview)
+    
     @field_validator('JWT_SECRET_KEY')
     @classmethod
     def validate_jwt_secret_key_length(cls, v: SecretStr) -> SecretStr:
