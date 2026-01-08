@@ -145,7 +145,7 @@ class KoboAICompanion:
             logger.error(f"Error sending highlight with analysis: {e}", exc_info=True)
             return None
     
-    async def _generate_short_summary(
+    async def generate_short_summary(
         self,
         text: str,
         book: str,
@@ -156,6 +156,7 @@ class KoboAICompanion:
         Generate a SHORT 1-2 sentence summary for Kobo device display.
         
         This is optimized for Kobo's qndb toast notifications which have ~200 char limit.
+        Public API for external modules.
         
         Args:
             text: The highlighted text to analyze

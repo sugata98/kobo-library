@@ -105,7 +105,7 @@ async def kobo_ask(
         logger.info(f"Received {request.mode} request from '{request.context.book}' by {request.context.author}")
         
         # Generate SHORT summary for Kobo modal (qndb has ~200 char limit)
-        short_summary = await kobo_companion._generate_short_summary(
+        short_summary = await kobo_companion.generate_short_summary(
             text=request.text,
             book=request.context.book,
             author=request.context.author,
