@@ -2,11 +2,11 @@
 Kobo AI Companion API Endpoints
 
 Provides endpoints for:
-1. Receiving highlights from Kobo device
+1. Receiving questions/highlights from Kobo device
 2. Telegram webhook for conversational AI
 """
 
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, HTTPException, Header, Request, BackgroundTasks, Response
 from pydantic import BaseModel, Field
 from typing import Optional
 import logging
@@ -23,51 +23,56 @@ router = APIRouter()
 
 
 # Pydantic models
-class KoboHighlight(BaseModel):
-    """Model for Kobo highlight payload"""
-    text: str = Field(..., description="The highlighted text")
+class KoboContext(BaseModel):
+    """Context information from Kobo device"""
     book: str = Field(..., description="Book title")
     author: str = Field(..., description="Author name")
-    chapter: Optional[str] = Field(None, description="Chapter name (optional)")
+    chapter: Optional[str] = Field(None, description="Chapter name")
+    device_id: Optional[str] = Field(None, description="Kobo device identifier")
+
+
+class KoboAskRequest(BaseModel):
+    """Model for Kobo ask/explain request"""
+    mode: str = Field(..., description="Mode: 'explain', 'summarize', etc.")
+    text: str = Field(..., description="The selected text to explain")
+    context: KoboContext = Field(..., description="Reading context")
     
     class Config:
         json_schema_extra = {
             "example": {
+                "mode": "explain",
                 "text": "Load balancers distribute traffic across multiple servers...",
-                "book": "System Design Interview",
-                "author": "Alex Xu",
-                "chapter": "Chapter 2: Scalability"
+                "context": {
+                    "book": "System Design Interview",
+                    "author": "Alex Xu",
+                    "chapter": "Chapter 2: Scalability",
+                    "device_id": "kobo-sarthak"
+                }
             }
         }
 
 
-class HighlightResponse(BaseModel):
-    """Response model for highlight submission"""
-    status: str
-    message: str
-    telegram_message_id: Optional[int] = None
-
-
-@router.post("/kobo-highlight", response_model=HighlightResponse)
-async def receive_kobo_highlight(
-    highlight: KoboHighlight,
+@router.post("/kobo-ask")
+async def kobo_ask(
+    request: KoboAskRequest,
+    background_tasks: BackgroundTasks,
     x_api_key: str = Header(..., description="API key for authentication")
 ):
     """
-    Receive a highlight from Kobo device and process it.
+    Receive a question/highlight from Kobo device and provide immediate explanation.
     
     This endpoint:
     1. Validates the API key
-    2. Sends highlight to Telegram
-    3. Generates AI analysis
-    4. Replies with analysis in Telegram thread
+    2. Generates quick explanation with Gemini (returns immediately)
+    3. Sends full analysis to Telegram in background (with images)
     
     Args:
-        highlight: The Kobo highlight data
+        request: The Kobo ask request with text and context
+        background_tasks: FastAPI background tasks
         x_api_key: API key from X-API-Key header
         
     Returns:
-        Response with status and Telegram message ID
+        Plain text explanation (for Kobo dialog box)
         
     Raises:
         HTTPException: If authentication fails or service is unavailable
@@ -95,38 +100,37 @@ async def receive_kobo_highlight(
             detail="Kobo AI Companion service is not available. Check TELEGRAM_ENABLED and credentials."
         )
     
-    # Process the highlight
+    # Process the request
     try:
-        logger.info(f"Received highlight from '{highlight.book}' by {highlight.author}")
+        logger.info(f"Received {request.mode} request from '{request.context.book}' by {request.context.author}")
         
-        # Send highlight with AI analysis to Telegram
-        message_id = await kobo_companion.send_highlight_with_analysis(
-            text=highlight.text,
-            book=highlight.book,
-            author=highlight.author,
-            chapter=highlight.chapter
+        # Generate quick explanation (2-3 seconds)
+        explanation = await kobo_companion._generate_analysis(
+            text=request.text,
+            book=request.context.book,
+            author=request.context.author,
+            chapter=request.context.chapter
         )
         
-        if message_id:
-            logger.info(f"Successfully processed highlight, message ID: {message_id}")
-            return HighlightResponse(
-                status="success",
-                message="Highlight sent to Telegram with AI analysis",
-                telegram_message_id=message_id
-            )
-        else:
-            logger.error("Failed to send highlight to Telegram")
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to send highlight to Telegram"
-            )
+        # Schedule background task: send full analysis to Telegram (with images)
+        background_tasks.add_task(
+            kobo_companion.send_highlight_with_analysis,
+            text=request.text,
+            book=request.context.book,
+            author=request.context.author,
+            chapter=request.context.chapter
+        )
+        
+        logger.info(f"Returning explanation to Kobo, Telegram update scheduled")
+        
+        # Return plain text for Kobo dialog (no JSON, no formatting)
+        return Response(content=explanation, media_type="text/plain")
             
     except Exception as e:
-        logger.error(f"Error processing highlight: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing highlight: {str(e)}"
-        )
+        logger.error(f"Error processing Kobo request: {e}", exc_info=True)
+        # Return error message as plain text (will show in Kobo dialog)
+        error_msg = "Sorry, I encountered an error processing your request. Please try again."
+        return Response(content=error_msg, media_type="text/plain", status_code=500)
 
 
 @router.post("/telegram-webhook")

@@ -9,7 +9,6 @@ Supports automatic diagram generation using gemini-2.5-flash-image.
 import asyncio
 import io
 import logging
-import tempfile
 from typing import Optional
 from telegram import Update, Bot
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
