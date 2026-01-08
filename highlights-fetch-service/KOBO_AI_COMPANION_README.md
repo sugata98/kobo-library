@@ -98,9 +98,9 @@ pip install -r requirements.txt
 ### 6. Run Locally (Development)
 
 ```bash
-python kobo_companion_main.py
+python main.py
 # OR
-uvicorn kobo_companion_main:app --reload
+uvicorn main:app --reload
 ```
 
 ## 🌐 Deployment on Render.com
@@ -120,7 +120,7 @@ pip install -r requirements.txt
 
 **Start Command**:
 ```bash
-uvicorn kobo_companion_main:app --host 0.0.0.0 --port $PORT
+uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
 **Environment Variables** (add in Render dashboard):
@@ -451,15 +451,17 @@ Bot replies with follow-up insights!
 
 ```
 highlights-fetch-service/
-├── kobo_companion_main.py          # Main FastAPI application
+├── main.py                          # Main FastAPI application (integrated with library + AI companion)
 ├── app/
+│   ├── api/
+│   │   └── kobo_companion.py        # AI companion API endpoints
 │   ├── services/
-│   │   └── kobo_ai_companion.py    # Telegram + AI service
+│   │   └── kobo_ai_companion.py     # Telegram + AI service
 │   └── core/
-│       └── config.py                # Configuration (updated)
-├── requirements.txt                 # Dependencies
-├── example.env                      # Environment template
-└── KOBO_AI_COMPANION_README.md     # This file
+│       └── config.py                 # Configuration (updated)
+├── requirements.txt                  # Dependencies
+├── example.env                       # Environment template
+└── KOBO_AI_COMPANION_README.md      # This file
 ```
 
 ## 🚀 Quick Test
@@ -509,7 +511,7 @@ curl -X POST https://your-app-name.onrender.com/kobo-highlight \
 
 ## 💡 Tips
 
-1. **Test locally first**: Use `uvicorn kobo_companion_main:app --reload`
+1. **Test locally first**: Use `uvicorn main:app --reload`
 2. **Check webhook**: Visit `/telegram-webhook-info` after deployment
 3. **Monitor logs**: Use Render logs to debug issues
 4. **Rate limits**: Gemini free tier = 15 req/min (plenty for reading)

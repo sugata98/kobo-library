@@ -6,6 +6,7 @@ from app.api.sync_status import router as sync_status_router
 from app.api import kobo_companion
 from app.services.db_sync import db_sync_service
 from app.services.kobo_ai_companion import create_kobo_ai_companion, create_telegram_application
+from app.core.config import settings
 from contextlib import asynccontextmanager
 import asyncio
 import os
@@ -96,7 +97,6 @@ async def lifespan(app: FastAPI):
     logger.info("Application ready - database available")
     
     # Initialize Kobo AI Companion (if enabled)
-    from app.core.config import settings
     if settings.TELEGRAM_ENABLED:
         logger.info("Initializing Kobo AI Companion...")
         kobo_companion.kobo_companion = create_kobo_ai_companion()

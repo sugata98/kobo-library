@@ -5,6 +5,7 @@ Integrates Telegram bot with Google Gemini AI for reading companion functionalit
 Uses webhooks for deployment on platforms like Render.
 """
 
+import asyncio
 import logging
 from typing import Optional
 from telegram import Update, Bot
@@ -156,8 +157,8 @@ Keep your response:
 If this is a technical/engineering book, focus on concepts, applications, and principles.
 If it's fiction or non-technical, provide literary or thematic analysis instead."""
 
-            # Generate response using Gemini
-            response = self.model.generate_content(system_prompt)
+            # Generate response using Gemini (run in thread pool to avoid blocking event loop)
+            response = await asyncio.to_thread(self.model.generate_content, system_prompt)
             
             if not response or not response.text:
                 logger.warning("Empty response from Gemini")
@@ -260,7 +261,8 @@ If discussing technical/engineering topics:
 
 Be warm, knowledgeable, and genuinely helpful."""
 
-            response = self.model.generate_content(prompt)
+            # Generate response using Gemini (run in thread pool to avoid blocking event loop)
+            response = await asyncio.to_thread(self.model.generate_content, prompt)
             
             if not response or not response.text:
                 logger.warning("Empty response from Gemini for follow-up")

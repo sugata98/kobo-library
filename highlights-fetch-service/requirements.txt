@@ -1,12 +1,13 @@
 # Core Framework & Dependencies
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-b2sdk
-pydantic>=2.0.0
-pydantic-settings
-python-dotenv
-sqlalchemy
-requests
+# Pinned/bounded to prevent breaking changes from automatic upgrades
+fastapi>=0.104.0,<0.115.0          # FastAPI framework (allow minor updates within 0.1xx series)
+uvicorn[standard]>=0.24.0,<0.31.0  # ASGI server (tested with 0.24-0.30)
+b2sdk>=1.0.0,<3.0.0                # Backblaze B2 SDK (allow 1.x and 2.x, block 3.x breaking changes)
+pydantic>=2.0.0,<3.0.0             # Data validation (lock to Pydantic 2.x)
+pydantic-settings>=2.0.0,<3.0.0    # Settings management (compatible with Pydantic 2.x)
+python-dotenv>=0.19.0,<2.0.0       # .env file support (stable API)
+sqlalchemy>=1.4.0,<3.0.0           # Database ORM (tested with 1.4+ and 2.x)
+requests>=2.28.0,<3.0.0            # HTTP library (stable 2.x API)
 
 # Authentication & Security packages (pinned for security and reproducibility)
 # IMPORTANT: These are pinned to specific tested versions. Do not change without testing.
@@ -17,5 +18,10 @@ bcrypt==4.1.3                      # Bcrypt backend (pinned for passlib 1.7.4 co
 python-multipart==0.0.21           # Form data parsing for FastAPI
 
 # Kobo AI Companion - Telegram Bot & AI
-python-telegram-bot>=20.0          # Telegram bot API (v20+ with ApplicationBuilder pattern and webhook support)
-google-generativeai                # Google Gemini AI for reading companion insights
+python-telegram-bot>=20.0,<22.0    # Telegram bot API (v20+ with ApplicationBuilder pattern and webhook support)
+# TODO: MIGRATION REQUIRED by 2025-11-30
+# google-generativeai is DEPRECATED and will be replaced by google-genai SDK
+# Legacy support ends: November 30, 2025
+# Migration guide: https://ai.google.dev/gemini-api/docs/migrate-to-cloud
+# Schedule migration testing before Q4 2025
+google-generativeai==0.8.3         # Google Gemini AI (PINNED: deprecated, migrate to google-genai before 2025-11-30)

@@ -8,7 +8,7 @@ Successfully created a **FastAPI-based Kobo AI Companion** with Telegram webhook
 
 ## 📦 Deliverables
 
-### 1. Main Application: `kobo_companion_main.py`
+### 1. Main Application: `main.py` (Integrated)
 
 **Complete FastAPI application** with:
 
@@ -116,7 +116,7 @@ pydantic>=2.0.0
        ▼
 ┌──────────────────────────────────┐
 │  FastAPI Application              │
-│  (kobo_companion_main.py)         │
+│  (main.py)                        │
 │                                   │
 │  1. Validate API Key              │
 │  2. Call KoboAICompanion service  │
@@ -255,7 +255,7 @@ pip install -r requirements.txt
 **Start Command**:
 
 ```bash
-uvicorn kobo_companion_main:app --host 0.0.0.0 --port $PORT
+uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
 ### 3. Verify
@@ -306,7 +306,7 @@ All requirements met:
 
 ```bash
 # 1. Start server
-python kobo_companion_main.py
+python main.py
 
 # 2. Run test script
 python test_kobo_api.py
@@ -353,7 +353,7 @@ curl -X POST https://your-app.onrender.com/kobo-highlight \
 
 ```
 highlights-fetch-service/
-├── kobo_companion_main.py          # ✨ NEW - Main FastAPI app
+├── main.py                          # ✏️ Updated - Integrated AI companion
 ├── app/
 │   ├── services/
 │   │   └── kobo_ai_companion.py    # ✨ NEW - Bot + AI service
@@ -423,7 +423,7 @@ Render.com
 pip install -r requirements.txt
 
 # 3. Run locally
-python kobo_companion_main.py
+python main.py
 
 # 4. Test
 python test_kobo_api.py
@@ -450,5 +450,22 @@ python test_kobo_api.py
 **Total Documentation**: ~900 lines  
 **Test Coverage**: ✅ API endpoint tested  
 **Linter**: ✅ No errors
+
+**Ready to deploy!** 🚀
+
+---
+
+## ⚠️ **Important: Upcoming Migration**
+
+**Google Gemini SDK Migration Required**
+
+- **Current SDK**: `google-generativeai` (v0.8.3) - DEPRECATED
+- **New SDK**: `google-genai` (Cloud-based)
+- **Deadline**: November 30, 2025
+- **Action Required**: See `MIGRATION_TODO.md` for detailed migration plan
+
+The current implementation works perfectly but requires migration to the new SDK before the deadline. Migration is straightforward (mostly import changes) and should be scheduled for Q2/Q3 2025.
+
+---
 
 **Ready to deploy!** 🚀
