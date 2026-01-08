@@ -3,10 +3,13 @@ Kobo AI Companion Service
 
 Integrates Telegram bot with Google Gemini AI for reading companion functionality.
 Uses webhooks for deployment on platforms like Render.
+Supports automatic diagram generation using gemini-2.5-flash-image.
 """
 
 import asyncio
+import io
 import logging
+import tempfile
 from typing import Optional
 from telegram import Update, Bot
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
@@ -21,8 +24,13 @@ class KoboAICompanion:
     Kobo AI Companion service.
     
     Handles:
-    1. Sending Kobo highlights to Telegram with AI analysis
-    2. Listening for user replies and providing follow-up insights
+    1. Sending Kobo highlights to Telegram with AI analysis (text)
+    2. Optionally generating diagrams for technical concepts (images)
+    3. Listening for user replies and providing follow-up insights
+    
+    Uses hybrid model approach:
+    - gemini-3-flash-preview for fast, powerful text analysis
+    - gemini-2.5-flash-image for optional diagram generation
     """
     
     def __init__(
@@ -30,7 +38,8 @@ class KoboAICompanion:
         telegram_token: str,
         gemini_api_key: str,
         chat_id: str,
-        gemini_model: str = "gemini-3-flash-preview"
+        text_model: str = "gemini-3-flash-preview",
+        image_model: Optional[str] = None
     ):
         """
         Initialize the Kobo AI Companion service.
@@ -39,19 +48,27 @@ class KoboAICompanion:
             telegram_token: Telegram bot API token from @BotFather
             gemini_api_key: Google AI Studio API key
             chat_id: Telegram chat/group ID where highlights are sent
-            gemini_model: Gemini model to use (default: gemini-3-flash-preview)
+            text_model: Gemini model for text analysis (default: gemini-3-flash-preview)
+            image_model: Gemini model for image generation (default: None/disabled)
         """
         self.telegram_token = telegram_token
         self.chat_id = chat_id
-        self.gemini_model = gemini_model
+        self.text_model = text_model
+        self.image_model = image_model if image_model else None
         
-        # Configure Gemini with new Cloud SDK
+        # Configure Gemini with Cloud SDK
         self.client = genai.Client(api_key=gemini_api_key)
         
         # Create bot instance
         self.bot = Bot(token=telegram_token)
         
-        logger.info(f"KoboAICompanion initialized with model: {gemini_model}, chat_id: {chat_id}")
+        logger.info(f"KoboAICompanion initialized:")
+        logger.info(f"  - Text model: {text_model}")
+        if self.image_model:
+            logger.info(f"  ✅ Image generation enabled: {self.image_model}")
+        else:
+            logger.info(f"  ⚪ Image generation disabled")
+        logger.info(f"  - Chat ID: {chat_id}")
     
     async def send_highlight_with_analysis(
         self,
@@ -61,7 +78,8 @@ class KoboAICompanion:
         chapter: Optional[str] = None
     ) -> Optional[int]:
         """
-        Send a Kobo highlight to Telegram and reply with AI analysis.
+        Send a Kobo highlight to Telegram with AI analysis.
+        Optionally generates and sends a diagram if helpful.
         
         Args:
             text: The highlighted text
@@ -90,8 +108,8 @@ class KoboAICompanion:
                 parse_mode="Markdown"
             )
             
-            # Generate AI analysis
-            logger.info(f"Generating AI analysis for '{book}'")
+            # Generate AI text analysis
+            logger.info(f"Generating text analysis for '{book}'")
             ai_response = await self._generate_analysis(text, book, author, chapter)
             
             # Send AI analysis as a reply (creates thread)
@@ -102,6 +120,24 @@ class KoboAICompanion:
                 parse_mode="Markdown",
                 reply_to_message_id=highlight_msg.message_id
             )
+            
+            # Try to generate and send a diagram (if image generation is enabled)
+            if self.image_model:
+                logger.info(f"Attempting to generate diagram for '{book}'")
+                image_bytes = await self._try_generate_image(text, book, author, ai_response)
+                
+                if image_bytes:
+                    try:
+                        # Send image as a reply to the analysis (in the same thread)
+                        await self.bot.send_photo(
+                            chat_id=self.chat_id,
+                            photo=io.BytesIO(image_bytes),
+                            caption="🎨 Visual explanation",
+                            reply_to_message_id=analysis_msg.message_id
+                        )
+                        logger.info(f"✅ Sent diagram for '{book}'")
+                    except Exception as e:
+                        logger.error(f"Failed to send image to Telegram: {e}", exc_info=True)
             
             logger.info(f"Successfully sent highlight and analysis for '{book}'")
             return analysis_msg.message_id
@@ -118,7 +154,8 @@ class KoboAICompanion:
         chapter: Optional[str] = None
     ) -> str:
         """
-        Generate AI analysis for a highlighted passage.
+        Generate AI text analysis for a highlighted passage.
+        Uses the text model (gemini-3-flash-preview) for fast, high-quality analysis.
         
         Args:
             text: The highlighted text
@@ -156,15 +193,15 @@ Keep your response:
 If this is a technical/engineering book, focus on concepts, applications, and principles.
 If it's fiction or non-technical, provide literary or thematic analysis instead."""
 
-            # Generate response using Gemini (run in thread pool to avoid blocking event loop)
+            # Generate response using Gemini text model (run in thread pool to avoid blocking event loop)
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model=self.gemini_model,
+                model=self.text_model,
                 contents=system_prompt
             )
             
             if not response or not response.text:
-                logger.warning("Empty response from Gemini")
+                logger.warning("Empty response from Gemini for text analysis")
                 return "I apologize, but I couldn't generate an analysis at this time. Please try again later."
             
             return response.text.strip()
@@ -172,6 +209,74 @@ If it's fiction or non-technical, provide literary or thematic analysis instead.
         except Exception as e:
             logger.error(f"Error generating AI analysis: {e}", exc_info=True)
             return f"I encountered an error while analyzing this passage. Please try again later."
+    
+    async def _try_generate_image(
+        self,
+        text: str,
+        book: str,
+        author: str,
+        analysis: str
+    ) -> Optional[bytes]:
+        """
+        Attempt to generate a helpful diagram for the highlighted text.
+        Uses gemini-2.5-flash-image which automatically decides if an image would be beneficial.
+        
+        Args:
+            text: The highlighted text
+            book: Book title
+            author: Author name
+            analysis: The text analysis already generated
+            
+        Returns:
+            Image bytes if generated, None otherwise
+        """
+        if not self.image_model:
+            return None
+        
+        try:
+            # Create a prompt that asks Gemini to generate an image IF it would be helpful
+            image_prompt = f"""Based on this highlighted text from "{book}" by {author}:
+
+"{text}"
+
+Analysis: {analysis[:300]}...
+
+**Task**: If this concept would benefit from a visual diagram, generate a clear technical illustration.
+
+Generate an image ONLY if it would genuinely help understanding (e.g., for system architectures, data structures, algorithms, workflows, comparisons, mathematical concepts).
+
+If an image would help, create:
+- A clean, professional technical diagram
+- Simple, clear visual representation
+- Labeled components
+- Easy to understand at a glance
+
+If this concept doesn't benefit from visualization (e.g., it's a simple definition, quote, or abstract idea), respond with just text saying "No image needed" instead of generating an image."""
+
+            # Use gemini-2.5-flash-image which can generate images
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.image_model,
+                contents=image_prompt
+            )
+            
+            if not response or not response.parts:
+                logger.info("No image generated by Gemini (likely decided it wasn't beneficial)")
+                return None
+            
+            # Check if response contains an image
+            for part in response.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    logger.info("✅ Image generated successfully by Gemini")
+                    return part.inline_data.data
+            
+            # If we get here, Gemini responded with text only (decided not to generate image)
+            logger.info(f"Gemini decided not to generate image: {response.text[:100] if response.text else 'No text'}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error generating image: {e}", exc_info=True)
+            return None
     
     async def handle_conversation(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -231,6 +336,7 @@ If it's fiction or non-technical, provide literary or thematic analysis instead.
     async def _generate_follow_up(self, question: str, previous_context: str) -> str:
         """
         Generate a follow-up response based on user's question and previous context.
+        Uses the text model for fast, high-quality responses.
         
         Args:
             question: User's follow-up question
@@ -264,10 +370,10 @@ If discussing technical/engineering topics:
 
 Be warm, knowledgeable, and genuinely helpful."""
 
-            # Generate response using Gemini (run in thread pool to avoid blocking event loop)
+            # Generate response using Gemini text model (run in thread pool to avoid blocking event loop)
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model=self.gemini_model,
+                model=self.text_model,
                 contents=prompt
             )
             
@@ -306,11 +412,17 @@ def create_kobo_ai_companion() -> Optional[KoboAICompanion]:
         return None
     
     try:
+        # Normalize empty string to None for image model
+        image_model = settings.GEMINI_IMAGE_MODEL
+        if image_model == "":
+            image_model = None
+        
         return KoboAICompanion(
             telegram_token=settings.TELEGRAM_BOT_TOKEN.get_secret_value(),
             gemini_api_key=settings.GEMINI_API_KEY.get_secret_value(),
             chat_id=settings.TELEGRAM_CHAT_ID,
-            gemini_model=settings.GEMINI_MODEL
+            text_model=settings.GEMINI_MODEL,
+            image_model=image_model
         )
     except Exception as e:
         logger.error(f"Failed to create KoboAICompanion: {e}", exc_info=True)
@@ -359,4 +471,3 @@ async def create_telegram_application() -> Optional[Application]:
     except Exception as e:
         logger.error(f"Failed to create Telegram application: {e}", exc_info=True)
         return None
-
