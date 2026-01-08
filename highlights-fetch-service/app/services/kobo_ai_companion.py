@@ -10,7 +10,7 @@ import logging
 from typing import Optional
 from telegram import Update, Bot
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
-import google.generativeai as genai
+from google import genai
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -45,9 +45,8 @@ class KoboAICompanion:
         self.chat_id = chat_id
         self.gemini_model = gemini_model
         
-        # Configure Gemini
-        genai.configure(api_key=gemini_api_key)
-        self.model = genai.GenerativeModel(gemini_model)
+        # Configure Gemini with new Cloud SDK
+        self.client = genai.Client(api_key=gemini_api_key)
         
         # Create bot instance
         self.bot = Bot(token=telegram_token)
@@ -158,7 +157,11 @@ If this is a technical/engineering book, focus on concepts, applications, and pr
 If it's fiction or non-technical, provide literary or thematic analysis instead."""
 
             # Generate response using Gemini (run in thread pool to avoid blocking event loop)
-            response = await asyncio.to_thread(self.model.generate_content, system_prompt)
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.gemini_model,
+                contents=system_prompt
+            )
             
             if not response or not response.text:
                 logger.warning("Empty response from Gemini")
@@ -262,7 +265,11 @@ If discussing technical/engineering topics:
 Be warm, knowledgeable, and genuinely helpful."""
 
             # Generate response using Gemini (run in thread pool to avoid blocking event loop)
-            response = await asyncio.to_thread(self.model.generate_content, prompt)
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.gemini_model,
+                contents=prompt
+            )
             
             if not response or not response.text:
                 logger.warning("Empty response from Gemini for follow-up")

@@ -453,19 +453,4 @@ python test_kobo_api.py
 
 **Ready to deploy!** 🚀
 
----
-
-## ⚠️ **Important: Upcoming Migration**
-
-**Google Gemini SDK Migration Required**
-
-- **Current SDK**: `google-generativeai` (v0.8.3) - DEPRECATED
-- **New SDK**: `google-genai` (Cloud-based)
-- **Deadline**: November 30, 2025
-- **Action Required**: See `MIGRATION_TODO.md` for detailed migration plan
-
-The current implementation works perfectly but requires migration to the new SDK before the deadline. Migration is straightforward (mostly import changes) and should be scheduled for Q2/Q3 2025.
-
----
-
 **Ready to deploy!** 🚀
