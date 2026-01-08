@@ -202,7 +202,7 @@ If it's fiction or non-technical, provide literary or thematic analysis instead.
             return
         
         # Check if the reply is to the bot's message
-        if update.message.reply_to_message.from_user.id != self.bot.id:
+        if update.message.reply_to_message.from_user.id != context.bot.id:
             logger.debug("Reply is not to bot's message, ignoring")
             return
         
