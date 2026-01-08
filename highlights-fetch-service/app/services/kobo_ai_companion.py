@@ -291,12 +291,17 @@ If it's fiction or non-technical, provide literary or thematic analysis instead.
             Image bytes (PNG) if generated, None otherwise
         """
         if not self.image_model:
+            logger.info("Image generation disabled (GEMINI_IMAGE_MODEL not set)")
             return None
+        
+        logger.info(f"🎨 Image generation enabled. Model: {self.image_model}")
         
         # Determine approach based on model
         if "2.5-flash-image" in self.image_model.lower() or "imagen" in self.image_model.lower():
+            logger.info("Using direct image generation approach (Gemini 2.5 Flash Image)")
             return await self._generate_direct_image(text, book, author, analysis)
         else:
+            logger.info("Using Mermaid diagram approach (text model → mermaid.ink)")
             return await self._generate_mermaid_diagram(text, book, author, analysis)
     
     async def _generate_direct_image(
@@ -415,39 +420,70 @@ Keep the diagram simple, clear, and focused on the core concept."""
                 logger.info("Gemini decided this concept doesn't need a diagram")
                 return None
             
-            # Extract Mermaid code from response
+            # Extract Mermaid code from response (handle multiple formats)
             mermaid_code = None
+            
+            # Try extracting from markdown code block
             if "```mermaid" in response_text:
-                # Extract code block
                 start = response_text.find("```mermaid") + 10
                 end = response_text.find("```", start)
                 if end > start:
                     mermaid_code = response_text[start:end].strip()
-            elif response_text.startswith("graph") or response_text.startswith("flowchart") or response_text.startswith("sequenceDiagram"):
-                # Raw Mermaid code without markdown
+                    logger.info("Extracted Mermaid code from markdown block")
+            
+            # Try extracting from plain ``` block
+            elif "```" in response_text and not mermaid_code:
+                start = response_text.find("```") + 3
+                # Skip language identifier if present
+                newline_pos = response_text.find("\n", start)
+                if newline_pos > start:
+                    start = newline_pos + 1
+                end = response_text.find("```", start)
+                if end > start:
+                    potential_code = response_text[start:end].strip()
+                    # Verify it looks like Mermaid
+                    if any(keyword in potential_code for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
+                        mermaid_code = potential_code
+                        logger.info("Extracted Mermaid code from plain code block")
+            
+            # Try raw Mermaid code without markdown
+            if not mermaid_code and any(response_text.startswith(keyword) for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
                 mermaid_code = response_text
+                logger.info("Using raw Mermaid code (no markdown wrapper)")
             
             if not mermaid_code:
-                logger.info(f"No valid Mermaid code found in response: {response_text[:200]}")
+                logger.warning(f"No valid Mermaid code found in response. Full response: {response_text[:500]}")
                 return None
             
-            logger.info(f"Generated Mermaid code ({len(mermaid_code)} chars)")
+            logger.info(f"✅ Generated Mermaid code ({len(mermaid_code)} chars):")
+            logger.info(f"Mermaid code preview: {mermaid_code[:200]}...")
             
             # Convert Mermaid code to image using mermaid.ink
             # This is a free public service that renders Mermaid diagrams
-            encoded_mermaid = base64.b64encode(mermaid_code.encode('utf-8')).decode('utf-8')
-            mermaid_url = f"https://mermaid.ink/img/{encoded_mermaid}"
-            
-            # Download the rendered image
-            async with aiohttp.ClientSession() as session:
-                async with session.get(mermaid_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                    if resp.status == 200:
-                        image_bytes = await resp.read()
-                        logger.info(f"✅ Successfully rendered Mermaid diagram to PNG ({len(image_bytes)} bytes)")
-                        return image_bytes
-                    else:
-                        logger.warning(f"Failed to render Mermaid diagram: HTTP {resp.status}")
-                        return None
+            try:
+                # Use URL-safe base64 encoding (replace + with - and / with _)
+                encoded_mermaid = base64.urlsafe_b64encode(mermaid_code.encode('utf-8')).decode('utf-8')
+                # Remove padding (= characters) as mermaid.ink doesn't expect them
+                encoded_mermaid = encoded_mermaid.rstrip('=')
+                mermaid_url = f"https://mermaid.ink/img/{encoded_mermaid}"
+                
+                logger.info(f"Requesting image from mermaid.ink: {mermaid_url[:100]}...")
+                
+                # Download the rendered image
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(mermaid_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                        if resp.status == 200:
+                            image_bytes = await resp.read()
+                            logger.info(f"✅ Successfully rendered Mermaid diagram to PNG ({len(image_bytes)} bytes)")
+                            return image_bytes
+                        else:
+                            error_text = await resp.text()
+                            logger.warning(f"Failed to render Mermaid diagram: HTTP {resp.status}")
+                            logger.warning(f"Response body: {error_text[:200]}")
+                            return None
+            except aiohttp.ClientError as e:
+                logger.error(f"Network error fetching Mermaid image: {e}", exc_info=True)
+                return None
             
         except Exception as e:
             logger.error(f"Error generating diagram: {e}", exc_info=True)
