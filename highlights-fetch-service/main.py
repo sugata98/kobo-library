@@ -3,7 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.endpoints import router as api_router
 from app.api.auth import router as auth_router
 from app.api.sync_status import router as sync_status_router
+from app.api import kobo_companion
 from app.services.db_sync import db_sync_service
+from app.services.kobo_ai_companion import create_kobo_ai_companion, create_telegram_application
+from app.core.config import settings
 from contextlib import asynccontextmanager
 import asyncio
 import os
@@ -93,11 +96,45 @@ async def lifespan(app: FastAPI):
     
     logger.info("Application ready - database available")
     
+    # Initialize Kobo AI Companion (if enabled)
+    if settings.TELEGRAM_ENABLED:
+        logger.info("Initializing Kobo AI Companion...")
+        kobo_companion.kobo_companion = create_kobo_ai_companion()
+        
+        if kobo_companion.kobo_companion:
+            logger.info("✅ Kobo AI Companion initialized successfully")
+        else:
+            logger.warning("⚠️  Failed to initialize Kobo AI Companion")
+        
+        # Initialize Telegram application for webhooks
+        kobo_companion.telegram_app = await create_telegram_application()
+        if kobo_companion.telegram_app:
+            await kobo_companion.telegram_app.initialize()
+            logger.info("✅ Telegram application initialized for webhook mode")
+            
+            # Set webhook if URL is configured
+            if settings.TELEGRAM_WEBHOOK_URL:
+                webhook_url = f"{settings.TELEGRAM_WEBHOOK_URL}/telegram-webhook"
+                try:
+                    await kobo_companion.telegram_app.bot.set_webhook(url=webhook_url)
+                    logger.info(f"✅ Telegram webhook set to: {webhook_url}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to set webhook: {e}")
+            else:
+                logger.warning("⚠️  TELEGRAM_WEBHOOK_URL not set - webhook not configured")
+        else:
+            logger.warning("⚠️  Failed to initialize Telegram application")
+    else:
+        logger.info("ℹ️  Kobo AI Companion is disabled (TELEGRAM_ENABLED=False)")
+    
     # Yield control to the application
     yield
     
     # Shutdown: cleanup if needed
     logger.info("Application shutting down...")
+    if kobo_companion.telegram_app:
+        await kobo_companion.telegram_app.shutdown()
+        logger.info("✅ Telegram application shut down")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -121,13 +158,27 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
 app.include_router(sync_status_router, prefix="/api", tags=["sync"])
 app.include_router(api_router, prefix="/api")
+app.include_router(kobo_companion.router, tags=["kobo-ai-companion"])
 
 @app.get("/")
 def read_root():
-    return {"message": "Readr API is running"}
+    return {
+        "message": "Readr API is running",
+        "features": {
+            "library": "enabled",
+            "ai_companion": settings.TELEGRAM_ENABLED
+        }
+    }
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     """Health check endpoint for uptime monitoring services.
     Supports both GET and HEAD requests."""
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "ai_companion": {
+            "enabled": settings.TELEGRAM_ENABLED,
+            "companion_initialized": kobo_companion.kobo_companion is not None,
+            "telegram_initialized": kobo_companion.telegram_app is not None
+        }
+    }

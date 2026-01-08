@@ -1,7 +1,7 @@
 import os
 from pydantic_settings import BaseSettings
-from pydantic import SecretStr, field_validator, ValidationError
-from typing import Optional
+from pydantic import SecretStr, field_validator, model_validator, ValidationError
+from typing import Optional, Any
 
 class Settings(BaseSettings):
     # B2 credentials for KoboSync bucket (read-only for database syncing)
@@ -30,6 +30,17 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"  # Options: "lax", "none", "strict"
     COOKIE_DOMAIN: Optional[str] = None  # Set to parent domain (e.g., ".readr.space") to share across subdomains
     
+    # Kobo AI Companion settings
+    KOBO_API_KEY: Optional[SecretStr] = None  # API key for Kobo device authentication
+    TELEGRAM_BOT_TOKEN: Optional[SecretStr] = None  # Telegram bot API token from @BotFather
+    TELEGRAM_CHAT_ID: Optional[str] = None  # Telegram group/chat ID where highlights are sent
+    TELEGRAM_WEBHOOK_URL: Optional[str] = None  # Public webhook URL for Telegram (e.g., https://your-app.onrender.com)
+    TELEGRAM_ENABLED: bool = False  # Set to True to enable Kobo AI Companion
+    
+    # Google Gemini AI settings
+    GEMINI_API_KEY: Optional[SecretStr] = None  # Google AI Studio API key
+    GEMINI_MODEL: str = "gemini-3-flash-preview"  # Default model for reading companion (Gemini 3 Flash Preview)
+    
     @field_validator('JWT_SECRET_KEY')
     @classmethod
     def validate_jwt_secret_key_length(cls, v: SecretStr) -> SecretStr:
@@ -55,6 +66,41 @@ class Settings(BaseSettings):
         if v < 1:
             raise ValueError("JWT_ACCESS_TOKEN_EXPIRE_MINUTES must be at least 1 minute")
         return v
+    
+    @model_validator(mode='after')
+    def validate_telegram_config(self) -> 'Settings':
+        """
+        Validate Kobo AI Companion configuration when TELEGRAM_ENABLED is True.
+        
+        Ensures all required fields are set when the feature is enabled.
+        """
+        if self.TELEGRAM_ENABLED:
+            missing_fields = []
+            
+            # Check required fields
+            if not self.KOBO_API_KEY:
+                missing_fields.append('KOBO_API_KEY')
+            
+            if not self.TELEGRAM_BOT_TOKEN:
+                missing_fields.append('TELEGRAM_BOT_TOKEN')
+            
+            if not self.TELEGRAM_CHAT_ID:
+                missing_fields.append('TELEGRAM_CHAT_ID')
+            
+            if not self.TELEGRAM_WEBHOOK_URL:
+                missing_fields.append('TELEGRAM_WEBHOOK_URL')
+            
+            if not self.GEMINI_API_KEY:
+                missing_fields.append('GEMINI_API_KEY')
+            
+            if missing_fields:
+                raise ValueError(
+                    f"TELEGRAM_ENABLED is True but the following required fields are missing or empty: "
+                    f"{', '.join(missing_fields)}. "
+                    f"Please set these environment variables or disable the feature by setting TELEGRAM_ENABLED=false."
+                )
+        
+        return self
 
     class Config:
         env_file = ".env"
