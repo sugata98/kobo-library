@@ -171,63 +171,63 @@ class KoboAICompanion:
         chat_id: Union[int, str],
         text: str,
         reply_to_message_id: Optional[int] = None,
-        use_html: bool = True,
+        use_markdown: bool = True,
         **kwargs
     ) -> Optional[Message]:
         """
         Safely send a message with formatting, falling back gracefully on errors.
         
         Strategy:
-        1. Try HTML mode (most robust for AI-generated content)
-        2. Fall back to Markdown if HTML fails
+        1. Try Markdown mode first (AI generates Markdown syntax like **bold**)
+        2. Fall back to HTML if Markdown parsing fails
         3. Fall back to plain text if both fail
         
         Args:
             chat_id: Chat ID to send to (int or str)
             text: Message text
             reply_to_message_id: Optional message ID to reply to
-            use_html: Whether to prefer HTML mode (default: True)
+            use_markdown: Whether to prefer Markdown mode (default: True)
             **kwargs: Additional arguments for send_message
             
         Returns:
             Sent message object or None if failed
         """
-        # Try HTML first (most forgiving for AI-generated content)
-        if use_html:
+        # Try Markdown first (AI generates Markdown syntax like **bold**, *italic*, etc.)
+        if use_markdown:
             try:
-                # Escape HTML special characters but preserve the text structure
-                escaped_text = self._escape_html(text)
                 return await self.bot.send_message(
                     chat_id=chat_id,
-                    text=escaped_text,
-                    parse_mode="HTML",
+                    text=text,
+                    parse_mode="Markdown",
                     reply_to_message_id=reply_to_message_id,
                     **kwargs
                 )
             except BadRequest as e:
                 if "can't parse entities" in str(e).lower() or "can't find end" in str(e).lower():
-                    logger.warning(f"HTML parsing failed: {e}. Trying Markdown.")
+                    logger.warning(f"Markdown parsing failed: {e}. Trying HTML.")
                 else:
-                    logger.error(f"HTML BadRequest error: {e}", exc_info=True)
+                    logger.error(f"Markdown BadRequest error: {e}", exc_info=True)
             except Exception as e:
-                logger.warning(f"HTML mode failed: {e}. Trying Markdown.")
+                logger.warning(f"Markdown mode failed: {e}. Trying HTML.")
         
-        # Fall back to Markdown
+        # Fall back to HTML (escape special chars and send)
         try:
+            # Escape HTML special characters but preserve the text structure
+            escaped_text = self._escape_html(text)
             return await self.bot.send_message(
                 chat_id=chat_id,
-                text=text,
-                parse_mode="Markdown",
+                text=escaped_text,
+                parse_mode="HTML",
                 reply_to_message_id=reply_to_message_id,
                 **kwargs
             )
         except BadRequest as e:
             if "can't parse entities" in str(e).lower() or "can't find end" in str(e).lower():
-                logger.warning(f"Markdown parsing failed: {e}. Falling back to plain text.")
+                logger.warning(f"HTML parsing failed: {e}. Falling back to plain text.")
             else:
-                logger.error(f"Markdown BadRequest error: {e}", exc_info=True)
+                logger.error(f"HTML BadRequest error: {e}", exc_info=True)
         except Exception as e:
-            logger.warning(f"Markdown mode failed: {e}. Falling back to plain text.")
+            logger.warning(f"HTML mode failed: {e}. Falling back to plain text.")
         
         # Final fallback: plain text
         try:
