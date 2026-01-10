@@ -5,4 +5,4 @@ set -e
 PORT=${PORT:-8000}
 
 echo "Starting uvicorn on port $PORT with 4 workers..."
-exec uvicorn main:app --host 0.0.0.0 --port $PORT --workers 4
+exec uvicorn main:app --host 0.0.0.0 --port $PORT --workers 4 --log-config logging_config.json 2>&1
