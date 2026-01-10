@@ -112,12 +112,24 @@ async def lifespan(app: FastAPI):
             await kobo_companion.telegram_app.initialize()
             logger.info("✅ Telegram application initialized for webhook mode")
             
-            # Set webhook if URL is configured
+            # Set webhook if URL is configured (only in one worker to avoid rate limits)
             if settings.TELEGRAM_WEBHOOK_URL:
                 webhook_url = f"{settings.TELEGRAM_WEBHOOK_URL}/telegram-webhook"
+                
+                # Use a lock file to ensure only one worker sets the webhook
+                lock_file = "/tmp/.telegram_webhook.lock"
                 try:
-                    await kobo_companion.telegram_app.bot.set_webhook(url=webhook_url)
-                    logger.info(f"✅ Telegram webhook set to: {webhook_url}")
+                    # Try to create lock file atomically
+                    import fcntl
+                    lock_fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                    try:
+                        await kobo_companion.telegram_app.bot.set_webhook(url=webhook_url)
+                        logger.info(f"✅ Telegram webhook set to: {webhook_url}")
+                    finally:
+                        os.close(lock_fd)
+                except FileExistsError:
+                    # Another worker already set the webhook
+                    logger.info("ℹ️  Telegram webhook already set by another worker")
                 except Exception as e:
                     logger.error(f"❌ Failed to set webhook: {e}")
             else:
