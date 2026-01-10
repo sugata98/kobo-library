@@ -45,6 +45,55 @@ Example:
 GET /api/books/{book_id}/cover?title=Clean+Code&author=Robert+Martin&isbn=9780132350884
 ```
 
+## 🤖 Kobo AI Companion
+
+The service includes an AI-powered reading companion that integrates with Telegram and Google Gemini AI. It provides:
+
+1. **Highlight Analysis** - Automatically analyzes highlights from your Kobo device
+2. **Follow-up Questions** - Reply to bot messages for deeper discussion
+3. **General Questions** ⭐ **NEW!** - Ask the bot anything by tagging it
+4. **Visual Diagrams** 🎨 **NEW!** - Get actual images when you ask for diagrams
+
+### Quick Start
+
+**Tag the bot in Telegram:**
+
+```
+@YourBotName What are the key principles of distributed systems?
+```
+
+**Ask for visual explanations:**
+
+```
+@YourBotName explain diagrammatically how load balancers work
+```
+
+→ Gets text explanation + actual PNG diagram (not ASCII art!)
+
+**Or use the API:**
+
+```bash
+curl -X POST https://your-api.com/kobo-companion/ask \
+  -H "X-API-Key: your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Explain Docker containers"}'
+```
+
+**📖 See documentation:**
+
+- [GENERAL_QUESTIONS_FEATURE.md](./GENERAL_QUESTIONS_FEATURE.md) - General Q&A feature
+- [VISUAL_DIAGRAMS_UPDATE.md](./VISUAL_DIAGRAMS_UPDATE.md) - Visual diagram generation
+
+### Configuration
+
+Add these environment variables:
+
+- `TELEGRAM_ENABLED=True` - Enable Telegram integration
+- `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather
+- `TELEGRAM_CHAT_ID` - Your chat/group ID
+- `GEMINI_API_KEY` - Google AI API key
+- `KOBO_API_KEY` - API key for `/ask` endpoint
+
 ## Security & Authentication
 
 This service includes JWT-based authentication for secure access. All sensitive configuration values use Pydantic's `SecretStr` for protection.
