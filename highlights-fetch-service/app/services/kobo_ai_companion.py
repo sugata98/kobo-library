@@ -10,12 +10,14 @@ import asyncio
 import html
 import io
 import logging
-from typing import Optional, Union
-from telegram import Update, Bot, Message
+from typing import Optional, Union, List
+from telegram import Update, Bot, Message, PhotoSize
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
 from telegram.error import BadRequest
 from google import genai
+from google.genai import types
 from app.core.config import settings
+import base64
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +30,10 @@ class KoboAICompanion:
     1. Sending Kobo highlights to Telegram with AI analysis (text)
     2. Optionally generating diagrams for technical concepts (images)
     3. Listening for user replies and providing follow-up insights
+    4. Understanding and analyzing images sent by users (vision/multimodal)
     
     Uses hybrid model approach:
-    - gemini-3-flash-preview for fast, powerful text analysis
+    - gemini-3-flash-preview for fast, powerful text analysis and vision
     - gemini-2.5-flash-image for optional diagram generation
     """
     
@@ -812,6 +815,203 @@ Keep the diagram simple, clear, and focused on the core concept."""
         
         logger.info(f"Successfully replied to follow-up question")
     
+    async def _download_photo(self, photo_sizes: List[PhotoSize]) -> Optional[bytes]:
+        """
+        Download a photo from Telegram.
+        
+        Args:
+            photo_sizes: List of PhotoSize objects (different resolutions)
+            
+        Returns:
+            Photo bytes or None if download fails
+        """
+        try:
+            # Get the highest resolution photo (last in the list)
+            largest_photo = photo_sizes[-1]
+            logger.info(f"Downloading photo: {largest_photo.file_id} ({largest_photo.width}x{largest_photo.height})")
+            
+            # Download the file
+            file = await self.bot.get_file(largest_photo.file_id)
+            photo_bytes = await file.download_as_bytearray()
+            
+            logger.info(f"✅ Downloaded photo: {len(photo_bytes)} bytes")
+            return bytes(photo_bytes)
+            
+        except Exception as e:
+            logger.error(f"Error downloading photo: {e}", exc_info=True)
+            return None
+    
+    async def handle_photo_question(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        Handle questions about photos sent to the bot.
+        
+        This handles when the user:
+        - Sends a photo with a caption mentioning the bot
+        - Sends a photo and then mentions the bot in a reply
+        
+        Args:
+            update: Telegram update object
+            context: Telegram context object
+        """
+        if not update.message:
+            return
+        
+        # Ignore messages not in the configured chat
+        if str(update.effective_chat.id) != self.chat_id:
+            logger.debug(f"Ignoring message from chat {update.effective_chat.id}")
+            return
+        
+        # Ignore the bot's own messages
+        if update.message.from_user.is_bot:
+            logger.debug("Ignoring bot's own message")
+            return
+        
+        # Check if there's a photo
+        if not update.message.photo:
+            logger.debug("No photo in message, ignoring")
+            return
+        
+        # Check if the bot is mentioned in the caption
+        bot_username = context.bot.username
+        caption = update.message.caption or ""
+        
+        has_mention = False
+        if update.message.caption_entities:
+            for entity in update.message.caption_entities:
+                if entity.type == "mention":
+                    mention = caption[entity.offset:entity.offset + entity.length]
+                    if bot_username and mention == f"@{bot_username}":
+                        has_mention = True
+                        break
+                elif entity.type == "text_mention" and entity.user.id == context.bot.id:
+                    has_mention = True
+                    break
+        
+        # Also check for plain text mention
+        if bot_username and f"@{bot_username}" in caption:
+            has_mention = True
+        
+        if not has_mention:
+            logger.debug("Bot not mentioned in photo caption, ignoring")
+            return
+        
+        # Extract the question (remove the bot mention)
+        user_question = caption
+        if bot_username:
+            user_question = user_question.replace(f"@{bot_username}", "").strip()
+        
+        # If no question text, use a default prompt
+        if not user_question:
+            user_question = "What can you tell me about this image?"
+        
+        logger.info(f"Received photo question from user {update.effective_user.id}: {user_question[:50]}...")
+        
+        # Send typing indicator
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id,
+            action="typing"
+        )
+        
+        # Download the photo
+        photo_bytes = await self._download_photo(update.message.photo)
+        if not photo_bytes:
+            await self._safe_send_message(
+                chat_id=update.effective_chat.id,
+                text="Sorry, I couldn't download the image. Please try again.",
+                reply_to_message_id=update.message.message_id
+            )
+            return
+        
+        # Generate response using vision
+        response = await self.generate_image_analysis(user_question, photo_bytes)
+        
+        # Reply to the user's message using safe send method
+        reply_msg = await self._safe_send_message(
+            chat_id=update.effective_chat.id,
+            text=f"🤖 {response}",
+            reply_to_message_id=update.message.message_id
+        )
+        
+        if not reply_msg:
+            logger.error("Failed to send response message")
+            return
+        
+        logger.info(f"Successfully replied to photo question")
+    
+    async def generate_image_analysis(self, question: str, image_bytes: bytes) -> str:
+        """
+        Analyze an image and answer a question about it using Gemini's vision capabilities.
+        
+        Args:
+            question: User's question about the image
+            image_bytes: Raw image bytes
+            
+        Returns:
+            AI-generated analysis/answer
+        """
+        try:
+            # Convert image to base64
+            image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+            
+            # Determine image mime type (basic detection based on magic bytes)
+            mime_type = "image/jpeg"  # default
+            if image_bytes.startswith(b'\x89PNG'):
+                mime_type = "image/png"
+            elif image_bytes.startswith(b'GIF'):
+                mime_type = "image/gif"
+            elif image_bytes.startswith(b'RIFF') and image_bytes[8:12] == b'WEBP':
+                mime_type = "image/webp"
+            
+            logger.info(f"Analyzing image ({mime_type}, {len(image_bytes)} bytes) with question: {question[:100]}...")
+            
+            # Build prompt for vision analysis
+            prompt = f"""You are an expert assistant with vision capabilities, specializing in technical, engineering, and scientific content analysis.
+
+A user has shared an image and asked:
+"{question}"
+
+Analyze the image carefully and provide a thoughtful, detailed response that:
+1. **Describes what you see** - Key elements, structure, content
+2. **Answers their specific question** - Address exactly what they asked
+3. **Provides context and insights** - Explain technical concepts, patterns, or relationships you observe
+4. **Offers additional observations** - Share relevant details they might find interesting
+
+If the image contains:
+- Technical diagrams: Explain the architecture, flow, or components
+- Code/text: Analyze and explain the content
+- Charts/graphs: Interpret the data and trends
+- Documents: Summarize and explain key points
+- General photos: Describe and contextualize what's shown
+
+Be detailed, accurate, and genuinely helpful."""
+
+            # Create multimodal content with image
+            contents = [
+                types.Part.from_text(prompt),
+                types.Part.from_bytes(
+                    data=image_bytes,
+                    mime_type=mime_type
+                )
+            ]
+            
+            # Generate response using Gemini with vision
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.text_model,  # gemini-3-flash-preview supports vision
+                contents=contents
+            )
+            
+            if not response or not response.text:
+                logger.warning("Empty response from Gemini for image analysis")
+                return "I apologize, but I couldn't analyze the image. Could you try asking in a different way?"
+            
+            logger.info(f"✅ Generated image analysis ({len(response.text)} chars)")
+            return response.text.strip()
+            
+        except Exception as e:
+            logger.error(f"Error analyzing image: {e}", exc_info=True)
+            return "I encountered an error while analyzing the image. Please try again."
+    
     def _wants_visual_explanation(self, text: str) -> bool:
         """
         Check if the user is asking for a visual/diagram explanation.
@@ -1225,8 +1425,16 @@ async def create_telegram_application() -> Optional[Application]:
         bot_username = bot_info.username
         bot_id = bot_info.id
         
+        # Add handler for photo questions (photos with captions mentioning the bot)
+        # This should be checked first, as it's more specific
+        application.add_handler(
+            MessageHandler(
+                filters.PHOTO & BotMentionFilter(bot_username, bot_id),
+                companion.handle_photo_question
+            )
+        )
+        
         # Add handler for general questions (bot mentions/tags)
-        # This should be checked first, before reply handler
         # Use custom filter to only trigger when THIS bot is mentioned
         application.add_handler(
             MessageHandler(
@@ -1244,6 +1452,7 @@ async def create_telegram_application() -> Optional[Application]:
         )
         
         logger.info("Telegram application created successfully for webhook mode")
+        logger.info("  - Photo questions: Send photo with caption tagging @botname")
         logger.info("  - General questions: Tag bot with @botname")
         logger.info("  - Follow-up questions: Reply to bot messages")
         return application

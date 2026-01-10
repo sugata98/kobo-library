@@ -6,11 +6,12 @@ Provides endpoints for:
 2. Telegram webhook for conversational AI
 """
 
-from fastapi import APIRouter, HTTPException, Header, Request, BackgroundTasks, Response
+from fastapi import APIRouter, HTTPException, Header, Request, BackgroundTasks, Response, UploadFile, File, Form
 from pydantic import BaseModel, Field
 from typing import Optional
 import logging
 import html
+import base64
 
 from app.core.config import settings
 
@@ -278,6 +279,124 @@ async def ask_general_question(
         raise HTTPException(
             status_code=500,
             detail=f"Error processing question: {str(e)}"
+        )
+
+
+@router.post("/ask-with-image")
+async def ask_with_image(
+    image: UploadFile = File(..., description="Image file to analyze"),
+    question: str = Form(default="What can you tell me about this image?", description="Question about the image"),
+    send_to_telegram: bool = Form(default=True, description="Whether to also send to Telegram"),
+    x_api_key: str = Header(..., description="API key for authentication")
+):
+    """
+    Ask the AI companion a question about an image.
+    
+    This endpoint allows you to upload an image and ask questions about it.
+    The bot will use Gemini's vision capabilities to analyze the image.
+    
+    Args:
+        image: Image file (JPEG, PNG, GIF, WebP)
+        question: Question about the image
+        send_to_telegram: Whether to also send the response to Telegram
+        x_api_key: API key from X-API-Key header
+        
+    Returns:
+        JSON response with the AI's analysis
+        
+    Raises:
+        HTTPException: If authentication fails or service is unavailable
+    """
+    # Validate API key
+    if not settings.KOBO_API_KEY:
+        logger.error("KOBO_API_KEY not configured")
+        raise HTTPException(
+            status_code=500,
+            detail="API key authentication not configured"
+        )
+    
+    if x_api_key != settings.KOBO_API_KEY.get_secret_value():
+        logger.warning(f"Invalid API key attempt")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key"
+        )
+    
+    # Check if companion is initialized
+    if not kobo_companion:
+        logger.error("Kobo AI Companion not initialized")
+        raise HTTPException(
+            status_code=503,
+            detail="Kobo AI Companion service is not available. Check TELEGRAM_ENABLED and credentials."
+        )
+    
+    # Validate question
+    if not question or not question.strip():
+        question = "What can you tell me about this image?"
+    
+    # Validate image file
+    if not image.content_type or not image.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Expected image, got {image.content_type}"
+        )
+    
+    try:
+        logger.info(f"Received image question: {question[:100]}... (file: {image.filename}, type: {image.content_type})")
+        
+        # Read image bytes
+        image_bytes = await image.read()
+        
+        if len(image_bytes) > 20 * 1024 * 1024:  # 20MB limit
+            raise HTTPException(
+                status_code=400,
+                detail="Image too large. Maximum size is 20MB."
+            )
+        
+        # Generate analysis
+        answer = await kobo_companion.generate_image_analysis(question, image_bytes)
+        
+        # Optionally send to Telegram
+        if send_to_telegram:
+            async def send_to_telegram_task():
+                try:
+                    # Send the image with caption
+                    from io import BytesIO
+                    
+                    # Escape HTML special characters
+                    escaped_question = html.escape(question)
+                    escaped_answer = html.escape(answer)
+                    
+                    # Send photo with caption
+                    await kobo_companion.bot.send_photo(
+                        chat_id=kobo_companion.chat_id,
+                        photo=BytesIO(image_bytes),
+                        caption=f"❓ <b>Question:</b> {escaped_question}\n\n🤖 <b>Analysis:</b>\n{escaped_answer[:800]}{'...' if len(escaped_answer) > 800 else ''}",
+                        parse_mode="HTML"
+                    )
+                    logger.info("Sent image Q&A to Telegram")
+                except Exception as e:
+                    logger.error(f"Failed to send image Q&A to Telegram: {e}", exc_info=True)
+            
+            # Run in background
+            import asyncio
+            asyncio.create_task(send_to_telegram_task())
+        
+        return {
+            "question": question,
+            "answer": answer,
+            "image_filename": image.filename,
+            "image_size_bytes": len(image_bytes),
+            "sent_to_telegram": send_to_telegram
+        }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing image question: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing image: {str(e)}"
         )
 
 

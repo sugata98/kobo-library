@@ -51,8 +51,9 @@ The service includes an AI-powered reading companion that integrates with Telegr
 
 1. **Highlight Analysis** - Automatically analyzes highlights from your Kobo device
 2. **Follow-up Questions** - Reply to bot messages for deeper discussion
-3. **General Questions** ⭐ **NEW!** - Ask the bot anything by tagging it
-4. **Visual Diagrams** 🎨 **NEW!** - Get actual images when you ask for diagrams
+3. **General Questions** ⭐ - Ask the bot anything by tagging it
+4. **Visual Diagrams** 🎨 - Get actual images when you ask for diagrams
+5. **Image Understanding** 🖼️ **NEW!** - Upload images and ask questions about them
 
 ### Quick Start
 
@@ -70,6 +71,15 @@ The service includes an AI-powered reading companion that integrates with Telegr
 
 → Gets text explanation + actual PNG diagram (not ASCII art!)
 
+**Ask about images:**
+
+```
+[Send image of a system architecture diagram]
+@YourBotName What does this architecture show?
+```
+
+→ Bot analyzes the image using Gemini's vision capabilities!
+
 **Or use the API:**
 
 ```bash
@@ -83,6 +93,7 @@ curl -X POST https://your-api.com/kobo-companion/ask \
 
 - [GENERAL_QUESTIONS_FEATURE.md](./GENERAL_QUESTIONS_FEATURE.md) - General Q&A feature
 - [VISUAL_DIAGRAMS_UPDATE.md](./VISUAL_DIAGRAMS_UPDATE.md) - Visual diagram generation
+- [IMAGE_UNDERSTANDING_FEATURE.md](./IMAGE_UNDERSTANDING_FEATURE.md) - Image analysis & vision 🆕
 
 ### Configuration
 
