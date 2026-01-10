@@ -991,11 +991,14 @@ If the image contains:
 Be detailed, accurate, and genuinely helpful."""
 
             # Create multimodal content with image
+            # Using the correct API: Part class methods should be called with keyword arguments
             contents = [
-                types.Part.from_text(prompt),
-                types.Part.from_bytes(
-                    data=image_bytes,
-                    mime_type=mime_type
+                types.Part(text=prompt),
+                types.Part(
+                    inline_data=types.Blob(
+                        data=image_bytes,
+                        mime_type=mime_type
+                    )
                 )
             ]
             
