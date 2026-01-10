@@ -363,6 +363,96 @@ If a diagram wouldn't add value, respond with text "SKIP" instead."""
             logger.error(f"Error generating direct image: {e}", exc_info=True)
             return None
     
+    def _extract_mermaid_code(self, response_text: str) -> Optional[str]:
+        """
+        Extract Mermaid diagram code from various response formats.
+        
+        Handles:
+        - Markdown code blocks with ```mermaid
+        - Plain ``` code blocks
+        - Raw Mermaid code without markdown
+        
+        Args:
+            response_text: AI response text that may contain Mermaid code
+            
+        Returns:
+            Extracted Mermaid code or None if not found
+        """
+        mermaid_code = None
+        
+        # Try extracting from markdown code block (```mermaid)
+        if "```mermaid" in response_text:
+            start = response_text.find("```mermaid") + 10
+            end = response_text.find("```", start)
+            if end > start:
+                mermaid_code = response_text[start:end].strip()
+                logger.info("Extracted Mermaid code from markdown block")
+        
+        # Try extracting from plain ``` block
+        elif "```" in response_text:
+            start = response_text.find("```") + 3
+            # Skip language identifier if present
+            newline_pos = response_text.find("\n", start)
+            if newline_pos > start:
+                start = newline_pos + 1
+            end = response_text.find("```", start)
+            if end > start:
+                potential_code = response_text[start:end].strip()
+                # Verify it looks like Mermaid
+                if any(keyword in potential_code for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
+                    mermaid_code = potential_code
+                    logger.info("Extracted Mermaid code from plain code block")
+        
+        # Try raw Mermaid code without markdown
+        if not mermaid_code and any(response_text.startswith(keyword) for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
+            mermaid_code = response_text
+            logger.info("Using raw Mermaid code (no markdown wrapper)")
+        
+        return mermaid_code
+    
+    async def _render_mermaid_to_png(self, mermaid_code: str) -> Optional[bytes]:
+        """
+        Render Mermaid diagram code to PNG image using mermaid.ink service.
+        
+        Args:
+            mermaid_code: Valid Mermaid diagram code
+            
+        Returns:
+            PNG image bytes or None if rendering fails
+        """
+        try:
+            import base64
+            import aiohttp
+            
+            logger.info(f"Rendering Mermaid code ({len(mermaid_code)} chars)")
+            logger.info(f"Mermaid code preview: {mermaid_code[:200]}...")
+            
+            # Convert Mermaid code to image using mermaid.ink
+            # This is a free public service that renders Mermaid diagrams
+            # Use URL-safe base64 encoding (replace + with - and / with _)
+            encoded_mermaid = base64.urlsafe_b64encode(mermaid_code.encode('utf-8')).decode('utf-8')
+            # Remove padding (= characters) as mermaid.ink doesn't expect them
+            encoded_mermaid = encoded_mermaid.rstrip('=')
+            mermaid_url = "https://mermaid.ink/img/" + encoded_mermaid
+            
+            logger.info(f"Requesting image from mermaid.ink: {mermaid_url[:100]}...")
+            
+            # Download the rendered image
+            async with aiohttp.ClientSession() as session:
+                async with session.get(mermaid_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    if resp.status == 200:
+                        image_bytes = await resp.read()
+                        logger.info(f"✅ Successfully rendered Mermaid diagram to PNG ({len(image_bytes)} bytes)")
+                        return image_bytes
+                    else:
+                        error_text = await resp.text()
+                        logger.warning(f"Failed to render Mermaid diagram: HTTP {resp.status}")
+                        logger.warning(f"Response body: {error_text[:200]}")
+                        return None
+        except Exception as e:
+            logger.error(f"Error rendering Mermaid to PNG: {e}", exc_info=True)
+            return None
+    
     async def _generate_mermaid_diagram(
         self,
         text: str,
@@ -374,12 +464,7 @@ If a diagram wouldn't add value, respond with text "SKIP" instead."""
         Generate Mermaid diagram code and convert to PNG.
         Best for technical diagrams, flowcharts, system architectures.
         """
-        
         try:
-            import urllib.parse
-            import base64
-            import aiohttp
-            
             # Ask Gemini to generate Mermaid diagram code
             mermaid_prompt = f"""Based on this highlighted text from "{book}" by {author}:
 
@@ -402,10 +487,10 @@ If visualization wouldn't add value, respond with exactly: "SKIP"
 
 Keep the diagram simple, clear, and focused on the core concept."""
 
-            # Generate Mermaid code using text model
+            # Generate Mermaid code using text model (Mermaid is text-based diagram code)
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model=self.image_model,  # Using image_model setting but it's still a text model
+                model=self.text_model,  # Use text_model for generating text-based diagram code
                 contents=mermaid_prompt
             )
             
@@ -420,74 +505,124 @@ Keep the diagram simple, clear, and focused on the core concept."""
                 logger.info("Gemini decided this concept doesn't need a diagram")
                 return None
             
-            # Extract Mermaid code from response (handle multiple formats)
-            mermaid_code = None
-            
-            # Try extracting from markdown code block
-            if "```mermaid" in response_text:
-                start = response_text.find("```mermaid") + 10
-                end = response_text.find("```", start)
-                if end > start:
-                    mermaid_code = response_text[start:end].strip()
-                    logger.info("Extracted Mermaid code from markdown block")
-            
-            # Try extracting from plain ``` block
-            elif "```" in response_text and not mermaid_code:
-                start = response_text.find("```") + 3
-                # Skip language identifier if present
-                newline_pos = response_text.find("\n", start)
-                if newline_pos > start:
-                    start = newline_pos + 1
-                end = response_text.find("```", start)
-                if end > start:
-                    potential_code = response_text[start:end].strip()
-                    # Verify it looks like Mermaid
-                    if any(keyword in potential_code for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
-                        mermaid_code = potential_code
-                        logger.info("Extracted Mermaid code from plain code block")
-            
-            # Try raw Mermaid code without markdown
-            if not mermaid_code and any(response_text.startswith(keyword) for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
-                mermaid_code = response_text
-                logger.info("Using raw Mermaid code (no markdown wrapper)")
+            # Extract Mermaid code using helper
+            mermaid_code = self._extract_mermaid_code(response_text)
             
             if not mermaid_code:
                 logger.warning(f"No valid Mermaid code found in response. Full response: {response_text[:500]}")
                 return None
             
-            logger.info(f"✅ Generated Mermaid code ({len(mermaid_code)} chars):")
-            logger.info(f"Mermaid code preview: {mermaid_code[:200]}...")
+            logger.info(f"✅ Generated Mermaid code ({len(mermaid_code)} chars)")
             
-            # Convert Mermaid code to image using mermaid.ink
-            # This is a free public service that renders Mermaid diagrams
-            try:
-                # Use URL-safe base64 encoding (replace + with - and / with _)
-                encoded_mermaid = base64.urlsafe_b64encode(mermaid_code.encode('utf-8')).decode('utf-8')
-                # Remove padding (= characters) as mermaid.ink doesn't expect them
-                encoded_mermaid = encoded_mermaid.rstrip('=')
-                mermaid_url = f"https://mermaid.ink/img/{encoded_mermaid}"
-                
-                logger.info(f"Requesting image from mermaid.ink: {mermaid_url[:100]}...")
-                
-                # Download the rendered image
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(mermaid_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                        if resp.status == 200:
-                            image_bytes = await resp.read()
-                            logger.info(f"✅ Successfully rendered Mermaid diagram to PNG ({len(image_bytes)} bytes)")
-                            return image_bytes
-                        else:
-                            error_text = await resp.text()
-                            logger.warning(f"Failed to render Mermaid diagram: HTTP {resp.status}")
-                            logger.warning(f"Response body: {error_text[:200]}")
-                            return None
-            except aiohttp.ClientError as e:
-                logger.error(f"Network error fetching Mermaid image: {e}", exc_info=True)
-                return None
+            # Render Mermaid code to PNG using helper
+            return await self._render_mermaid_to_png(mermaid_code)
             
         except Exception as e:
             logger.error(f"Error generating diagram: {e}", exc_info=True)
             return None
+    
+    async def handle_general_question(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        Handle general questions directed to the bot via mentions/tags.
+        
+        This handles when the user tags/mentions the bot to ask a general question,
+        without needing to reply to a specific message.
+        
+        Args:
+            update: Telegram update object
+            context: Telegram context object
+        """
+        if not update.message or not update.message.text:
+            return
+        
+        # Ignore messages not in the configured chat
+        if str(update.effective_chat.id) != self.chat_id:
+            logger.debug(f"Ignoring message from chat {update.effective_chat.id}")
+            return
+        
+        # Ignore the bot's own messages
+        if update.message.from_user.is_bot:
+            logger.debug("Ignoring bot's own message")
+            return
+        
+        # Check if the bot is mentioned/tagged in the message
+        bot_username = context.bot.username
+        message_text = update.message.text
+        
+        # Check for bot mention (either @username or entity mention)
+        has_mention = False
+        if update.message.entities:
+            for entity in update.message.entities:
+                if entity.type == "mention":
+                    mention = message_text[entity.offset:entity.offset + entity.length]
+                    if bot_username and mention == f"@{bot_username}":
+                        has_mention = True
+                        break
+                elif entity.type == "text_mention" and entity.user.id == context.bot.id:
+                    has_mention = True
+                    break
+        
+        # Also check for plain text mention
+        if bot_username and f"@{bot_username}" in message_text:
+            has_mention = True
+        
+        if not has_mention:
+            logger.debug("Bot not mentioned in message, ignoring")
+            return
+        
+        # Extract the question (remove the bot mention)
+        user_question = message_text
+        if bot_username:
+            user_question = user_question.replace(f"@{bot_username}", "").strip()
+        
+        if not user_question:
+            logger.debug("Empty question after removing mention, ignoring")
+            return
+        
+        logger.info(f"Received general question from user {update.effective_user.id}: {user_question[:50]}...")
+        
+        # Send typing indicator
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id,
+            action="typing"
+        )
+        
+        # Generate response to general question
+        response = await self.generate_general_answer(user_question)
+        
+        # Reply to the user's message
+        reply_msg = await update.message.reply_text(
+            f"🤖 {response}",
+            parse_mode="Markdown"
+        )
+        
+        # Check if user wants a visual/diagram
+        if self._wants_visual_explanation(user_question):
+            logger.info("User requested visual explanation, generating image...")
+            await context.bot.send_chat_action(
+                chat_id=update.effective_chat.id,
+                action="upload_photo"
+            )
+            
+            # Generate image based on the question and answer
+            image_bytes = await self._try_generate_image_from_text(
+                question=user_question,
+                answer=response
+            )
+            
+            if image_bytes:
+                try:
+                    await context.bot.send_photo(
+                        chat_id=update.effective_chat.id,
+                        photo=io.BytesIO(image_bytes),
+                        caption="🎨 Visual explanation",
+                        reply_to_message_id=reply_msg.message_id
+                    )
+                    logger.info("✅ Sent diagram for general question")
+                except Exception as e:
+                    logger.error(f"Failed to send image: {e}", exc_info=True)
+        
+        logger.info(f"Successfully replied to general question")
     
     async def handle_conversation(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -537,12 +672,265 @@ Keep the diagram simple, clear, and focused on the core concept."""
         follow_up_response = await self._generate_follow_up(user_question, previous_context)
         
         # Reply to the user's question
-        await update.message.reply_text(
+        reply_msg = await update.message.reply_text(
             follow_up_response,
             parse_mode="Markdown"
         )
         
+        # Check if user wants a visual/diagram
+        if self._wants_visual_explanation(user_question):
+            logger.info("User requested visual explanation, generating image...")
+            await context.bot.send_chat_action(
+                chat_id=update.effective_chat.id,
+                action="upload_photo"
+            )
+            
+            # Generate image based on the question and context
+            image_bytes = await self._try_generate_image_from_text(
+                question=user_question,
+                answer=follow_up_response,
+                context=previous_context
+            )
+            
+            if image_bytes:
+                try:
+                    await context.bot.send_photo(
+                        chat_id=update.effective_chat.id,
+                        photo=io.BytesIO(image_bytes),
+                        caption="🎨 Visual explanation",
+                        reply_to_message_id=reply_msg.message_id
+                    )
+                    logger.info("✅ Sent diagram for follow-up question")
+                except Exception as e:
+                    logger.error(f"Failed to send image: {e}", exc_info=True)
+        
         logger.info(f"Successfully replied to follow-up question")
+    
+    def _wants_visual_explanation(self, text: str) -> bool:
+        """
+        Check if the user is asking for a visual/diagram explanation.
+        
+        Args:
+            text: The user's message text
+            
+        Returns:
+            True if user wants a visual explanation
+        """
+        visual_keywords = [
+            "diagram", "diagrammatically", "diagrammatic",
+            "visualize", "visualise", "visual", "visually",
+            "draw", "drawing", "sketch",
+            "show", "illustrate", "illustration",
+            "chart", "graph", "flowchart",
+            "picture", "image",
+            "explain with", "show me"
+        ]
+        
+        text_lower = text.lower()
+        return any(keyword in text_lower for keyword in visual_keywords)
+    
+    async def _try_generate_image_from_text(
+        self,
+        question: str,
+        answer: str,
+        context: Optional[str] = None
+    ) -> Optional[bytes]:
+        """
+        Generate a visual diagram for a general question or follow-up.
+        
+        Args:
+            question: The user's question
+            answer: The text answer already generated
+            context: Optional previous context (for follow-ups)
+            
+        Returns:
+            Image bytes (PNG) if generated, None otherwise
+        """
+        if not self.image_model:
+            logger.info("Image generation disabled (GEMINI_IMAGE_MODEL not set)")
+            return None
+        
+        logger.info(f"🎨 Generating visual for: {question[:100]}...")
+        
+        # Determine approach based on model
+        if "2.5-flash-image" in self.image_model.lower() or "imagen" in self.image_model.lower():
+            return await self._generate_direct_image_from_text(question, answer, context)
+        else:
+            return await self._generate_mermaid_from_text(question, answer, context)
+    
+    async def _generate_direct_image_from_text(
+        self,
+        question: str,
+        answer: str,
+        context: Optional[str] = None
+    ) -> Optional[bytes]:
+        """
+        Generate image directly using Gemini 2.5 Flash Image for general questions.
+        """
+        try:
+            context_text = f"\n\nPrevious context:\n{context[:300]}..." if context else ""
+            
+            # Prompt for visual diagram generation
+            image_prompt = f"""User's question: "{question}"
+
+Text explanation provided:
+{answer[:500]}...{context_text}
+
+Create a clean, professional technical diagram or visual that illustrates this concept. The diagram should:
+- Be simple, clear, and easy to understand
+- Use a whiteboard or technical drawing style
+- Include labeled components and relationships
+- Focus on the core concept being explained
+- Use appropriate diagram type (flowchart, architecture, comparison, etc.)
+
+Make it visually informative and complement the text explanation."""
+
+            # Generate image using Gemini 2.5 Flash Image
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.image_model,
+                contents=image_prompt
+            )
+            
+            if not response or not response.parts:
+                logger.info("No response from Gemini image generation")
+                return None
+            
+            # Check if response contains an image
+            for part in response.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    logger.info(f"✅ Image generated successfully by {self.image_model}")
+                    return part.inline_data.data
+            
+            logger.info(f"No image in response from {self.image_model}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error generating direct image: {e}", exc_info=True)
+            return None
+    
+    async def _generate_mermaid_from_text(
+        self,
+        question: str,
+        answer: str,
+        context: Optional[str] = None
+    ) -> Optional[bytes]:
+        """
+        Generate Mermaid diagram code from text and convert to PNG.
+        
+        Note: Unlike _generate_mermaid_diagram, this method does NOT support SKIP responses
+        because it's called when the user explicitly requests a visual (e.g., "show me a diagram").
+        We always attempt to generate a diagram when this method is invoked.
+        """
+        try:
+            context_text = f"\n\nPrevious context:\n{context[:300]}..." if context else ""
+            
+            # Ask Gemini to generate Mermaid diagram code
+            mermaid_prompt = f"""User's question: "{question}"
+
+Text explanation:
+{answer[:500]}...{context_text}
+
+**Task**: Generate a Mermaid diagram that visually explains this concept.
+
+Create valid Mermaid code that:
+- Uses the appropriate diagram type (flowchart, sequenceDiagram, classDiagram, graph, etc.)
+- Is simple and focused on the core concept
+- Includes clear labels and relationships
+- Is technically accurate
+
+Respond with ONLY the Mermaid code (starting with the diagram type like "flowchart TD" or "graph LR").
+Do NOT include markdown code fences or explanations."""
+
+            # Generate Mermaid code using text model (Mermaid is text-based diagram code)
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.text_model,  # Use text_model for generating text-based diagram code
+                contents=mermaid_prompt
+            )
+            
+            if not response or not response.text:
+                logger.info("No response from Gemini for diagram generation")
+                return None
+            
+            response_text = response.text.strip()
+            
+            # Extract Mermaid code using helper
+            mermaid_code = self._extract_mermaid_code(response_text)
+            
+            if not mermaid_code:
+                logger.warning(f"No valid Mermaid code found in response")
+                return None
+            
+            logger.info(f"✅ Generated Mermaid code ({len(mermaid_code)} chars)")
+            
+            # Render Mermaid code to PNG using helper
+            return await self._render_mermaid_to_png(mermaid_code)
+            
+        except Exception as e:
+            logger.error(f"Error generating Mermaid diagram: {e}", exc_info=True)
+            return None
+    
+    async def generate_general_answer(self, question: str) -> str:
+        """
+        Generate a response to a general question (not tied to a specific highlight).
+        Uses the text model for fast, high-quality responses.
+        
+        This is a public API method that can be called from API endpoints or handlers.
+        
+        Args:
+            question: User's general question
+            
+        Returns:
+            AI-generated answer
+        """
+        try:
+            # Check if user wants a visual - adjust prompt accordingly
+            wants_visual = self._wants_visual_explanation(question)
+            visual_instruction = ""
+            if wants_visual:
+                visual_instruction = "\n\n**IMPORTANT**: The user has requested a visual/diagram explanation. DO NOT create ASCII art or text-based diagrams in your response. Instead, describe the concept clearly in text - a proper visual diagram will be generated separately and sent after this message."
+            
+            prompt = f"""You are an expert assistant specializing in technical, engineering, and scientific topics, but also knowledgeable about general subjects.
+
+A user has asked you a question:
+{question}
+
+Provide a thoughtful, accurate response that:
+1. **Directly answers their question** with precision and clarity
+2. **Explains complex concepts simply** - Break down technical terms when needed
+3. **Provides practical context** - Include real-world examples or applications
+4. **Offers additional insights** - Share related information that might be helpful
+5. Is concise (2-3 paragraphs) but comprehensive
+
+If the question is about technical/engineering topics:
+- Use precise terminology but explain it clearly
+- Provide concrete examples or use cases
+- Suggest related concepts to explore
+
+If the question is about general topics:
+- Be informative and engaging
+- Provide relevant context and background
+- Share interesting connections or perspectives
+
+Be warm, knowledgeable, and genuinely helpful.{visual_instruction}"""
+
+            # Generate response using Gemini text model (run in thread pool to avoid blocking event loop)
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model=self.text_model,
+                contents=prompt
+            )
+            
+            if not response or not response.text:
+                logger.warning("Empty response from Gemini for general question")
+                return "I apologize, but I couldn't generate a response. Could you rephrase your question?"
+            
+            return response.text.strip()
+            
+        except Exception as e:
+            logger.error(f"Error generating general answer: {e}", exc_info=True)
+            return "I encountered an error. Please try asking again."
     
     async def _generate_follow_up(self, question: str, previous_context: str) -> str:
         """
@@ -557,6 +945,12 @@ Keep the diagram simple, clear, and focused on the core concept."""
             AI-generated follow-up response
         """
         try:
+            # Check if user wants a visual - adjust prompt accordingly
+            wants_visual = self._wants_visual_explanation(question)
+            visual_instruction = ""
+            if wants_visual:
+                visual_instruction = "\n\n**IMPORTANT**: The user has requested a visual/diagram explanation. DO NOT create ASCII art or text-based diagrams in your response. Instead, describe the concept clearly in text - a proper visual diagram will be generated separately and sent after this message."
+            
             prompt = f"""You are an expert reading companion specializing in technical, engineering, and scientific literature (but also knowledgeable about general topics).
 
 You're in a conversation with a reader about their book.
@@ -579,7 +973,7 @@ If discussing technical/engineering topics:
 - Provide practical examples or applications
 - Suggest related concepts to explore
 
-Be warm, knowledgeable, and genuinely helpful."""
+Be warm, knowledgeable, and genuinely helpful.{visual_instruction}"""
 
             # Generate response using Gemini text model (run in thread pool to avoid blocking event loop)
             response = await asyncio.to_thread(
@@ -640,6 +1034,57 @@ def create_kobo_ai_companion() -> Optional[KoboAICompanion]:
         return None
 
 
+class BotMentionFilter(filters.MessageFilter):
+    """
+    Custom filter that only matches messages where this specific bot is mentioned.
+    
+    Checks for:
+    - @bot_username mentions in entities
+    - text_mention entities referring to this bot (validated by bot ID)
+    """
+    
+    def __init__(self, bot_username: str, bot_id: int):
+        """
+        Initialize the filter with the bot's username and ID.
+        
+        Args:
+            bot_username: The bot's username (without @)
+            bot_id: The bot's numeric Telegram ID
+        """
+        self.bot_username = bot_username
+        self.bot_id = bot_id
+        super().__init__()
+    
+    def filter(self, message):
+        """
+        Check if the message mentions this specific bot.
+        
+        Args:
+            message: The Telegram message to check
+            
+        Returns:
+            True if this bot is mentioned, False otherwise
+        """
+        if not message.entities:
+            return False
+        
+        message_text = message.text or ""
+        
+        for entity in message.entities:
+            # Check for @username mention
+            if entity.type == "mention":
+                mention_text = message_text[entity.offset:entity.offset + entity.length]
+                if mention_text == f"@{self.bot_username}":
+                    return True
+            # Check for text_mention (when user doesn't have a public username)
+            elif entity.type == "text_mention":
+                # Validate that the mention refers to this specific bot by ID
+                if entity.user and entity.user.id == self.bot_id:
+                    return True
+        
+        return False
+
+
 async def create_telegram_application() -> Optional[Application]:
     """
     Create and configure Telegram Application for webhook mode.
@@ -668,7 +1113,23 @@ async def create_telegram_application() -> Optional[Application]:
             logger.error("Failed to create KoboAICompanion")
             return None
         
-        # Add conversation handler
+        # Get bot username and ID for the mention filter
+        bot = application.bot
+        bot_info = await bot.get_me()
+        bot_username = bot_info.username
+        bot_id = bot_info.id
+        
+        # Add handler for general questions (bot mentions/tags)
+        # This should be checked first, before reply handler
+        # Use custom filter to only trigger when THIS bot is mentioned
+        application.add_handler(
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND & BotMentionFilter(bot_username, bot_id),
+                companion.handle_general_question
+            )
+        )
+        
+        # Add conversation handler for replies to bot messages
         application.add_handler(
             MessageHandler(
                 filters.TEXT & ~filters.COMMAND & filters.REPLY,
@@ -677,6 +1138,8 @@ async def create_telegram_application() -> Optional[Application]:
         )
         
         logger.info("Telegram application created successfully for webhook mode")
+        logger.info("  - General questions: Tag bot with @botname")
+        logger.info("  - Follow-up questions: Reply to bot messages")
         return application
         
     except Exception as e:

@@ -217,3 +217,4 @@ Final Context - Book: '...', Author: '...', Chapter: 'CHAPTER 1: ...'
 - Keeps script fast and reliable
 
 🎯 **Result:** Chapter detection now works for most books!
+

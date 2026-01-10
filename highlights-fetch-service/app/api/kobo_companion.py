@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Header, Request, BackgroundTasks, 
 from pydantic import BaseModel, Field
 from typing import Optional
 import logging
+import html
 
 from app.core.config import settings
 
@@ -48,6 +49,20 @@ class KoboAskRequest(BaseModel):
                     "chapter": "Chapter 2: Scalability",
                     "device_id": "kobo-sarthak"
                 }
+            }
+        }
+
+
+class GeneralQuestionRequest(BaseModel):
+    """Model for general question request"""
+    question: str = Field(..., description="The question to ask the AI companion")
+    send_to_telegram: bool = Field(True, description="Whether to also send the response to Telegram")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "question": "What are the key principles of distributed systems?",
+                "send_to_telegram": True
             }
         }
 
@@ -171,6 +186,99 @@ async def telegram_webhook(request: Request):
         logger.error(f"Error processing Telegram webhook: {e}", exc_info=True)
         # Return 200 anyway to prevent Telegram from retrying
         return {"status": "error", "message": str(e)}
+
+
+@router.post("/ask")
+async def ask_general_question(
+    request: GeneralQuestionRequest,
+    background_tasks: BackgroundTasks,
+    x_api_key: str = Header(..., description="API key for authentication")
+):
+    """
+    Ask the AI companion a general question (not tied to a specific highlight).
+    
+    This endpoint allows you to ask the bot any question. The response is returned
+    immediately, and optionally sent to Telegram as well.
+    
+    Args:
+        request: The general question request
+        background_tasks: FastAPI background tasks
+        x_api_key: API key from X-API-Key header
+        
+    Returns:
+        JSON response with the AI's answer
+        
+    Raises:
+        HTTPException: If authentication fails or service is unavailable
+    """
+    # Validate API key
+    if not settings.KOBO_API_KEY:
+        logger.error("KOBO_API_KEY not configured")
+        raise HTTPException(
+            status_code=500,
+            detail="API key authentication not configured"
+        )
+    
+    if x_api_key != settings.KOBO_API_KEY.get_secret_value():
+        logger.warning(f"Invalid API key attempt")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key"
+        )
+    
+    # Check if companion is initialized
+    if not kobo_companion:
+        logger.error("Kobo AI Companion not initialized")
+        raise HTTPException(
+            status_code=503,
+            detail="Kobo AI Companion service is not available. Check TELEGRAM_ENABLED and credentials."
+        )
+    
+    # Validate question is not empty or whitespace-only
+    if not request.question or not request.question.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Question cannot be empty or contain only whitespace"
+        )
+    
+    # Process the question
+    try:
+        logger.info(f"Received general question: {request.question[:100]}...")
+        
+        # Generate answer
+        answer = await kobo_companion.generate_general_answer(request.question)
+        
+        # Optionally send to Telegram in background
+        if request.send_to_telegram:
+            async def send_to_telegram():
+                try:
+                    # Escape HTML special characters to prevent parsing errors
+                    escaped_question = html.escape(request.question)
+                    escaped_answer = html.escape(answer)
+                    
+                    await kobo_companion.bot.send_message(
+                        chat_id=kobo_companion.chat_id,
+                        text=f"❓ <b>Question:</b>\n{escaped_question}\n\n🤖 <b>Answer:</b>\n{escaped_answer}",
+                        parse_mode="HTML"
+                    )
+                    logger.info("Sent general Q&A to Telegram")
+                except Exception as e:
+                    logger.error(f"Failed to send Q&A to Telegram: {e}", exc_info=True)
+            
+            background_tasks.add_task(send_to_telegram)
+        
+        return {
+            "question": request.question,
+            "answer": answer,
+            "sent_to_telegram": request.send_to_telegram
+        }
+            
+    except Exception as e:
+        logger.error(f"Error processing general question: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing question: {str(e)}"
+        )
 
 
 @router.get("/telegram-webhook-info")

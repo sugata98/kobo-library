@@ -362,3 +362,4 @@ GEMINI_IMAGE_MODEL=gemini-2.5-flash-image
 
 🚀 **Deploy and test!** The logs will now show you exactly what's happening at each step.
 
+

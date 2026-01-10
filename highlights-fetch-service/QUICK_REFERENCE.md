@@ -36,11 +36,12 @@ API_KEY="your-secure-random-key"  # Must match KOBO_API_KEY above!
 
 ---
 
-## 📡 API Endpoint
+## 📡 API Endpoints
 
-### `POST /kobo-ask`
+### `POST /kobo-ask` - Highlight Analysis
 
 **Request:**
+
 ```json
 {
   "mode": "explain",
@@ -56,11 +57,35 @@ API_KEY="your-secure-random-key"  # Must match KOBO_API_KEY above!
 **Response:** Plain text explanation (for Kobo dialog)  
 **Background:** Full analysis sent to Telegram with images
 
+### `POST /ask` - General Questions ⭐ NEW!
+
+**Request:**
+
+```json
+{
+  "question": "What is a load balancer?",
+  "send_to_telegram": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "question": "What is a load balancer?",
+  "answer": "A load balancer is...",
+  "sent_to_telegram": true
+}
+```
+
+**Use Case:** Ask the bot anything, anytime (not tied to a specific highlight)
+
 ---
 
 ## 🚀 Quick Start
 
 1. **Get API Keys:**
+
    - Telegram: @BotFather
    - Gemini: https://makersuite.google.com/app/apikey
    - Kobo: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
@@ -68,10 +93,12 @@ API_KEY="your-secure-random-key"  # Must match KOBO_API_KEY above!
 2. **Set Environment Variables** (Render dashboard)
 
 3. **Update Kobo Script:**
+
    - Set `API_KEY` in `ask_gemini.sh`
    - Copy to `/mnt/onboard/.adds/nm/scripts/`
 
 4. **Deploy:**
+
    ```bash
    git push origin main
    ```
@@ -93,6 +120,7 @@ API_KEY="your-secure-random-key"  # Must match KOBO_API_KEY above!
 - Works best for: architectures, diagrams, data structures
 
 **To disable:**
+
 ```bash
 GEMINI_IMAGE_MODEL=
 ```
@@ -113,22 +141,27 @@ python test_kobo_api.py
 - **Full Setup**: `KOBO_ASK_ENDPOINT.md`
 - **Image Generation**: `IMAGE_GENERATION_SETUP.md`
 - **Main README**: `KOBO_AI_COMPANION_README.md`
+- **General Questions**: `GENERAL_QUESTIONS_FEATURE.md` ⭐ NEW!
+- **Visual Diagrams**: `VISUAL_DIAGRAMS_UPDATE.md` 🎨 NEW!
 
 ---
 
 ## 🛠️ Troubleshooting
 
 **"Could not reach AI service"**
+
 - Check WiFi on Kobo
 - Verify API key matches in both places
 - Check backend is running: `https://api.readr.space/health`
 
 **No Telegram updates**
+
 - Check `TELEGRAM_ENABLED=true`
 - Verify bot token and chat ID
 - Check Render logs for errors
 
 **No images**
+
 - Normal! Gemini only generates when helpful
 - Try with technical content (algorithms, architectures)
 - Check logs for "Image generation" messages
@@ -142,20 +175,24 @@ python test_kobo_api.py
 3. **Rich analysis** - Telegram has full details + images
 4. **Conversation mode** - Reply in Telegram for follow-ups
 5. **Smart images** - Gemini decides automatically
+6. **General questions** ⭐ - Tag bot in Telegram: `@BotName What is Docker?`
+7. **API access** - Use `/ask` endpoint for programmatic questions
+8. **Visual diagrams** 🎨 - Ask "explain diagrammatically" to get actual images (not ASCII art!)
 
 ---
 
 ## 🎉 Summary
 
 **Architecture**: Hybrid model approach
+
 - `gemini-3-flash-preview` for fast text analysis
 - `gemini-2.5-flash-image` for smart diagram generation
 
 **Flow**:
+
 ```
 Kobo → API → Immediate response (2-3s)
           → Background: Telegram + images (5-10s)
 ```
 
 **Result**: Best reading companion for technical books! 🚀📚
-
