@@ -210,7 +210,7 @@ GEMINI_IMAGE_MODEL=
 - Add instruction to NOT create ASCII diagrams
 - Tell AI that a proper diagram will be generated separately
 
-#### `_generate_general_answer()` - Text Response for General Questions
+#### `generate_general_answer()` - Text Response for General Questions
 
 **Added:**
 

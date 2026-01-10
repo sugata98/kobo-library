@@ -363,6 +363,96 @@ If a diagram wouldn't add value, respond with text "SKIP" instead."""
             logger.error(f"Error generating direct image: {e}", exc_info=True)
             return None
     
+    def _extract_mermaid_code(self, response_text: str) -> Optional[str]:
+        """
+        Extract Mermaid diagram code from various response formats.
+        
+        Handles:
+        - Markdown code blocks with ```mermaid
+        - Plain ``` code blocks
+        - Raw Mermaid code without markdown
+        
+        Args:
+            response_text: AI response text that may contain Mermaid code
+            
+        Returns:
+            Extracted Mermaid code or None if not found
+        """
+        mermaid_code = None
+        
+        # Try extracting from markdown code block (```mermaid)
+        if "```mermaid" in response_text:
+            start = response_text.find("```mermaid") + 10
+            end = response_text.find("```", start)
+            if end > start:
+                mermaid_code = response_text[start:end].strip()
+                logger.info("Extracted Mermaid code from markdown block")
+        
+        # Try extracting from plain ``` block
+        elif "```" in response_text:
+            start = response_text.find("```") + 3
+            # Skip language identifier if present
+            newline_pos = response_text.find("\n", start)
+            if newline_pos > start:
+                start = newline_pos + 1
+            end = response_text.find("```", start)
+            if end > start:
+                potential_code = response_text[start:end].strip()
+                # Verify it looks like Mermaid
+                if any(keyword in potential_code for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
+                    mermaid_code = potential_code
+                    logger.info("Extracted Mermaid code from plain code block")
+        
+        # Try raw Mermaid code without markdown
+        if not mermaid_code and any(response_text.startswith(keyword) for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
+            mermaid_code = response_text
+            logger.info("Using raw Mermaid code (no markdown wrapper)")
+        
+        return mermaid_code
+    
+    async def _render_mermaid_to_png(self, mermaid_code: str) -> Optional[bytes]:
+        """
+        Render Mermaid diagram code to PNG image using mermaid.ink service.
+        
+        Args:
+            mermaid_code: Valid Mermaid diagram code
+            
+        Returns:
+            PNG image bytes or None if rendering fails
+        """
+        try:
+            import base64
+            import aiohttp
+            
+            logger.info(f"Rendering Mermaid code ({len(mermaid_code)} chars)")
+            logger.info(f"Mermaid code preview: {mermaid_code[:200]}...")
+            
+            # Convert Mermaid code to image using mermaid.ink
+            # This is a free public service that renders Mermaid diagrams
+            # Use URL-safe base64 encoding (replace + with - and / with _)
+            encoded_mermaid = base64.urlsafe_b64encode(mermaid_code.encode('utf-8')).decode('utf-8')
+            # Remove padding (= characters) as mermaid.ink doesn't expect them
+            encoded_mermaid = encoded_mermaid.rstrip('=')
+            mermaid_url = "https://mermaid.ink/img/" + encoded_mermaid
+            
+            logger.info(f"Requesting image from mermaid.ink: {mermaid_url[:100]}...")
+            
+            # Download the rendered image
+            async with aiohttp.ClientSession() as session:
+                async with session.get(mermaid_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                    if resp.status == 200:
+                        image_bytes = await resp.read()
+                        logger.info(f"✅ Successfully rendered Mermaid diagram to PNG ({len(image_bytes)} bytes)")
+                        return image_bytes
+                    else:
+                        error_text = await resp.text()
+                        logger.warning(f"Failed to render Mermaid diagram: HTTP {resp.status}")
+                        logger.warning(f"Response body: {error_text[:200]}")
+                        return None
+        except Exception as e:
+            logger.error(f"Error rendering Mermaid to PNG: {e}", exc_info=True)
+            return None
+    
     async def _generate_mermaid_diagram(
         self,
         text: str,
@@ -374,12 +464,7 @@ If a diagram wouldn't add value, respond with text "SKIP" instead."""
         Generate Mermaid diagram code and convert to PNG.
         Best for technical diagrams, flowcharts, system architectures.
         """
-        
         try:
-            import urllib.parse
-            import base64
-            import aiohttp
-            
             # Ask Gemini to generate Mermaid diagram code
             mermaid_prompt = f"""Based on this highlighted text from "{book}" by {author}:
 
@@ -402,10 +487,10 @@ If visualization wouldn't add value, respond with exactly: "SKIP"
 
 Keep the diagram simple, clear, and focused on the core concept."""
 
-            # Generate Mermaid code using text model
+            # Generate Mermaid code using text model (Mermaid is text-based diagram code)
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model=self.image_model,  # Using image_model setting but it's still a text model
+                model=self.text_model,  # Use text_model for generating text-based diagram code
                 contents=mermaid_prompt
             )
             
@@ -420,70 +505,17 @@ Keep the diagram simple, clear, and focused on the core concept."""
                 logger.info("Gemini decided this concept doesn't need a diagram")
                 return None
             
-            # Extract Mermaid code from response (handle multiple formats)
-            mermaid_code = None
-            
-            # Try extracting from markdown code block
-            if "```mermaid" in response_text:
-                start = response_text.find("```mermaid") + 10
-                end = response_text.find("```", start)
-                if end > start:
-                    mermaid_code = response_text[start:end].strip()
-                    logger.info("Extracted Mermaid code from markdown block")
-            
-            # Try extracting from plain ``` block
-            elif "```" in response_text and not mermaid_code:
-                start = response_text.find("```") + 3
-                # Skip language identifier if present
-                newline_pos = response_text.find("\n", start)
-                if newline_pos > start:
-                    start = newline_pos + 1
-                end = response_text.find("```", start)
-                if end > start:
-                    potential_code = response_text[start:end].strip()
-                    # Verify it looks like Mermaid
-                    if any(keyword in potential_code for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
-                        mermaid_code = potential_code
-                        logger.info("Extracted Mermaid code from plain code block")
-            
-            # Try raw Mermaid code without markdown
-            if not mermaid_code and any(response_text.startswith(keyword) for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
-                mermaid_code = response_text
-                logger.info("Using raw Mermaid code (no markdown wrapper)")
+            # Extract Mermaid code using helper
+            mermaid_code = self._extract_mermaid_code(response_text)
             
             if not mermaid_code:
                 logger.warning(f"No valid Mermaid code found in response. Full response: {response_text[:500]}")
                 return None
             
-            logger.info(f"✅ Generated Mermaid code ({len(mermaid_code)} chars):")
-            logger.info(f"Mermaid code preview: {mermaid_code[:200]}...")
+            logger.info(f"✅ Generated Mermaid code ({len(mermaid_code)} chars)")
             
-            # Convert Mermaid code to image using mermaid.ink
-            # This is a free public service that renders Mermaid diagrams
-            try:
-                # Use URL-safe base64 encoding (replace + with - and / with _)
-                encoded_mermaid = base64.urlsafe_b64encode(mermaid_code.encode('utf-8')).decode('utf-8')
-                # Remove padding (= characters) as mermaid.ink doesn't expect them
-                encoded_mermaid = encoded_mermaid.rstrip('=')
-                mermaid_url = f"https://mermaid.ink/img/{encoded_mermaid}"
-                
-                logger.info(f"Requesting image from mermaid.ink: {mermaid_url[:100]}...")
-                
-                # Download the rendered image
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(mermaid_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                        if resp.status == 200:
-                            image_bytes = await resp.read()
-                            logger.info(f"✅ Successfully rendered Mermaid diagram to PNG ({len(image_bytes)} bytes)")
-                            return image_bytes
-                        else:
-                            error_text = await resp.text()
-                            logger.warning(f"Failed to render Mermaid diagram: HTTP {resp.status}")
-                            logger.warning(f"Response body: {error_text[:200]}")
-                            return None
-            except aiohttp.ClientError as e:
-                logger.error(f"Network error fetching Mermaid image: {e}", exc_info=True)
-                return None
+            # Render Mermaid code to PNG using helper
+            return await self._render_mermaid_to_png(mermaid_code)
             
         except Exception as e:
             logger.error(f"Error generating diagram: {e}", exc_info=True)
@@ -556,7 +588,7 @@ Keep the diagram simple, clear, and focused on the core concept."""
         )
         
         # Generate response to general question
-        response = await self._generate_general_answer(user_question)
+        response = await self.generate_general_answer(user_question)
         
         # Reply to the user's message
         reply_msg = await update.message.reply_text(
@@ -785,12 +817,12 @@ Make it visually informative and complement the text explanation."""
     ) -> Optional[bytes]:
         """
         Generate Mermaid diagram code from text and convert to PNG.
+        
+        Note: Unlike _generate_mermaid_diagram, this method does NOT support SKIP responses
+        because it's called when the user explicitly requests a visual (e.g., "show me a diagram").
+        We always attempt to generate a diagram when this method is invoked.
         """
         try:
-            import urllib.parse
-            import base64
-            import aiohttp
-            
             context_text = f"\n\nPrevious context:\n{context[:300]}..." if context else ""
             
             # Ask Gemini to generate Mermaid diagram code
@@ -810,10 +842,10 @@ Create valid Mermaid code that:
 Respond with ONLY the Mermaid code (starting with the diagram type like "flowchart TD" or "graph LR").
 Do NOT include markdown code fences or explanations."""
 
-            # Generate Mermaid code using text model
+            # Generate Mermaid code using text model (Mermaid is text-based diagram code)
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
-                model=self.text_model,  # Use text model for Mermaid generation
+                model=self.text_model,  # Use text_model for generating text-based diagram code
                 contents=mermaid_prompt
             )
             
@@ -823,27 +855,8 @@ Do NOT include markdown code fences or explanations."""
             
             response_text = response.text.strip()
             
-            # Extract Mermaid code
-            mermaid_code = None
-            
-            # Try extracting from markdown code block
-            if "```mermaid" in response_text:
-                start = response_text.find("```mermaid") + 10
-                end = response_text.find("```", start)
-                if end > start:
-                    mermaid_code = response_text[start:end].strip()
-            elif "```" in response_text:
-                start = response_text.find("```") + 3
-                newline_pos = response_text.find("\n", start)
-                if newline_pos > start:
-                    start = newline_pos + 1
-                end = response_text.find("```", start)
-                if end > start:
-                    potential_code = response_text[start:end].strip()
-                    if any(keyword in potential_code for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
-                        mermaid_code = potential_code
-            elif any(response_text.startswith(keyword) for keyword in ["graph", "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram"]):
-                mermaid_code = response_text
+            # Extract Mermaid code using helper
+            mermaid_code = self._extract_mermaid_code(response_text)
             
             if not mermaid_code:
                 logger.warning(f"No valid Mermaid code found in response")
@@ -851,30 +864,19 @@ Do NOT include markdown code fences or explanations."""
             
             logger.info(f"✅ Generated Mermaid code ({len(mermaid_code)} chars)")
             
-            # Convert Mermaid code to image using mermaid.ink
-            encoded_mermaid = base64.urlsafe_b64encode(mermaid_code.encode('utf-8')).decode('utf-8')
-            encoded_mermaid = encoded_mermaid.rstrip('=')
-            mermaid_url = f"https://mermaid.ink/img/{encoded_mermaid}"
-            
-            # Download the rendered image
-            async with aiohttp.ClientSession() as session:
-                async with session.get(mermaid_url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                    if resp.status == 200:
-                        image_bytes = await resp.read()
-                        logger.info(f"✅ Successfully rendered Mermaid diagram ({len(image_bytes)} bytes)")
-                        return image_bytes
-                    else:
-                        logger.warning(f"Failed to render Mermaid diagram: HTTP {resp.status}")
-                        return None
+            # Render Mermaid code to PNG using helper
+            return await self._render_mermaid_to_png(mermaid_code)
             
         except Exception as e:
             logger.error(f"Error generating Mermaid diagram: {e}", exc_info=True)
             return None
     
-    async def _generate_general_answer(self, question: str) -> str:
+    async def generate_general_answer(self, question: str) -> str:
         """
         Generate a response to a general question (not tied to a specific highlight).
         Uses the text model for fast, high-quality responses.
+        
+        This is a public API method that can be called from API endpoints or handlers.
         
         Args:
             question: User's general question
@@ -1038,17 +1040,19 @@ class BotMentionFilter(filters.MessageFilter):
     
     Checks for:
     - @bot_username mentions in entities
-    - text_mention entities referring to this bot
+    - text_mention entities referring to this bot (validated by bot ID)
     """
     
-    def __init__(self, bot_username: str):
+    def __init__(self, bot_username: str, bot_id: int):
         """
-        Initialize the filter with the bot's username.
+        Initialize the filter with the bot's username and ID.
         
         Args:
             bot_username: The bot's username (without @)
+            bot_id: The bot's numeric Telegram ID
         """
         self.bot_username = bot_username
+        self.bot_id = bot_id
         super().__init__()
     
     def filter(self, message):
@@ -1072,12 +1076,11 @@ class BotMentionFilter(filters.MessageFilter):
                 mention_text = message_text[entity.offset:entity.offset + entity.length]
                 if mention_text == f"@{self.bot_username}":
                     return True
-            # Check for text_mention (when user doesn't have username)
+            # Check for text_mention (when user doesn't have a public username)
             elif entity.type == "text_mention":
-                # Note: entity.user would need bot ID comparison, but since
-                # handle_general_question already validates, we keep this simple
-                # and rely on the handler's validation
-                return True
+                # Validate that the mention refers to this specific bot by ID
+                if entity.user and entity.user.id == self.bot_id:
+                    return True
         
         return False
 
@@ -1110,17 +1113,18 @@ async def create_telegram_application() -> Optional[Application]:
             logger.error("Failed to create KoboAICompanion")
             return None
         
-        # Get bot username for the mention filter
+        # Get bot username and ID for the mention filter
         bot = application.bot
         bot_info = await bot.get_me()
         bot_username = bot_info.username
+        bot_id = bot_info.id
         
         # Add handler for general questions (bot mentions/tags)
         # This should be checked first, before reply handler
         # Use custom filter to only trigger when THIS bot is mentioned
         application.add_handler(
             MessageHandler(
-                filters.TEXT & ~filters.COMMAND & BotMentionFilter(bot_username),
+                filters.TEXT & ~filters.COMMAND & BotMentionFilter(bot_username, bot_id),
                 companion.handle_general_question
             )
         )

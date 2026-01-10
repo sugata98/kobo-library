@@ -54,7 +54,7 @@ Bot: [PNG Image] 🎨 Visual explanation
 ### Core Implementation
 1. **`app/services/kobo_ai_companion.py`**
    - Added `handle_general_question()` - Handle bot mentions
-   - Added `_generate_general_answer()` - Generate answers for general questions
+   - Added `generate_general_answer()` - Generate answers for general questions (public API)
    - Added `_wants_visual_explanation()` - Detect diagram requests
    - Added `_try_generate_image_from_text()` - Route to image generation
    - Added `_generate_direct_image_from_text()` - Generate with Gemini 2.5 Flash Image

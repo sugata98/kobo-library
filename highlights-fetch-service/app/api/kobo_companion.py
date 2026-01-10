@@ -234,12 +234,19 @@ async def ask_general_question(
             detail="Kobo AI Companion service is not available. Check TELEGRAM_ENABLED and credentials."
         )
     
+    # Validate question is not empty or whitespace-only
+    if not request.question or not request.question.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Question cannot be empty or contain only whitespace"
+        )
+    
     # Process the question
     try:
         logger.info(f"Received general question: {request.question[:100]}...")
         
         # Generate answer
-        answer = await kobo_companion._generate_general_answer(request.question)
+        answer = await kobo_companion.generate_general_answer(request.question)
         
         # Optionally send to Telegram in background
         if request.send_to_telegram:

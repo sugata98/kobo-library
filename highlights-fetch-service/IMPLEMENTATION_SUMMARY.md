@@ -19,7 +19,7 @@
 
 ### 2. AI Answer Generation
 
-**New Function: `_generate_general_answer()`**
+**New Function: `generate_general_answer()`**
 - Location: `app/services/kobo_ai_companion.py`
 - Uses Gemini AI (`gemini-3-flash-preview`) for fast, high-quality responses
 - Handles both technical and general topics
@@ -88,7 +88,7 @@ filters.TEXT & ~filters.COMMAND & filters.REPLY
 ### Core Implementation
 1. **`app/services/kobo_ai_companion.py`**
    - Added `handle_general_question()` method
-   - Added `_generate_general_answer()` method
+   - Added `generate_general_answer()` method (public API)
    - Updated `create_telegram_application()` to register mention handler
    - Total additions: ~100 lines
 

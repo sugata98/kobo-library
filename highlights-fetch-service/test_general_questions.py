@@ -71,7 +71,7 @@ async def test_general_question():
         
         try:
             # Generate answer
-            answer = await companion._generate_general_answer(question)
+            answer = await companion.generate_general_answer(question)
             
             # Display results
             print(f"✅ Answer received ({len(answer)} characters)")

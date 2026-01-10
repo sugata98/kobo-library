@@ -117,10 +117,10 @@ async def handle_general_question(self, update: Update, context: ContextTypes.DE
 - Sends typing indicator for better UX
 - Generates and replies with the answer
 
-#### `_generate_general_answer()`
+#### `generate_general_answer()`
 
 ```python
-async def _generate_general_answer(self, question: str) -> str:
+async def generate_general_answer(self, question: str) -> str:
     """
     Generate a response to a general question (not tied to a specific highlight).
     Uses the text model for fast, high-quality responses.
