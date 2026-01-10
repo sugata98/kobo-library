@@ -59,7 +59,7 @@ async def test_image_understanding():
     print()
     print("1. Via Telegram:")
     print("   - Send an image with a caption mentioning your bot")
-    print(f"   - Example: @{settings.TELEGRAM_BOT_TOKEN.get_secret_value().split(':')[0]} What's in this diagram?")
+    print("   - Example: @your_bot_username What's in this diagram?")
     print()
     print("2. Via API:")
     print("   - POST /api/ask-with-image")

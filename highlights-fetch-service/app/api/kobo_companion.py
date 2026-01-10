@@ -12,6 +12,7 @@ from typing import Optional
 import logging
 import html
 import base64
+from io import BytesIO
 
 from app.core.config import settings
 
@@ -22,6 +23,41 @@ telegram_app = None
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# Helper functions for background tasks
+async def _send_image_to_telegram(
+    bot,
+    chat_id: str,
+    image_bytes: bytes,
+    question: str,
+    answer: str
+):
+    """
+    Background task to send image Q&A to Telegram.
+    
+    Args:
+        bot: Telegram bot instance
+        chat_id: Telegram chat ID
+        image_bytes: Image data
+        question: User's question
+        answer: AI's answer
+    """
+    try:
+        # Escape HTML special characters
+        escaped_question = html.escape(question)
+        escaped_answer = html.escape(answer)
+        
+        # Send photo with caption
+        await bot.send_photo(
+            chat_id=chat_id,
+            photo=BytesIO(image_bytes),
+            caption=f"❓ <b>Question:</b> {escaped_question}\n\n🤖 <b>Analysis:</b>\n{escaped_answer[:800]}{'...' if len(escaped_answer) > 800 else ''}",
+            parse_mode="HTML"
+        )
+        logger.info("Sent image Q&A to Telegram")
+    except Exception as e:
+        logger.error(f"Failed to send image Q&A to Telegram: {e}", exc_info=True)
 
 
 # Pydantic models
@@ -284,6 +320,7 @@ async def ask_general_question(
 
 @router.post("/ask-with-image")
 async def ask_with_image(
+    background_tasks: BackgroundTasks,
     image: UploadFile = File(..., description="Image file to analyze"),
     question: str = Form(default="What can you tell me about this image?", description="Question about the image"),
     send_to_telegram: bool = Form(default=True, description="Whether to also send to Telegram"),
@@ -296,6 +333,7 @@ async def ask_with_image(
     The bot will use Gemini's vision capabilities to analyze the image.
     
     Args:
+        background_tasks: FastAPI background tasks for async Telegram dispatch
         image: Image file (JPEG, PNG, GIF, WebP)
         question: Question about the image
         send_to_telegram: Whether to also send the response to Telegram
@@ -356,31 +394,16 @@ async def ask_with_image(
         # Generate analysis
         answer = await kobo_companion.generate_image_analysis(question, image_bytes)
         
-        # Optionally send to Telegram
+        # Optionally send to Telegram in background
         if send_to_telegram:
-            async def send_to_telegram_task():
-                try:
-                    # Send the image with caption
-                    from io import BytesIO
-                    
-                    # Escape HTML special characters
-                    escaped_question = html.escape(question)
-                    escaped_answer = html.escape(answer)
-                    
-                    # Send photo with caption
-                    await kobo_companion.bot.send_photo(
-                        chat_id=kobo_companion.chat_id,
-                        photo=BytesIO(image_bytes),
-                        caption=f"❓ <b>Question:</b> {escaped_question}\n\n🤖 <b>Analysis:</b>\n{escaped_answer[:800]}{'...' if len(escaped_answer) > 800 else ''}",
-                        parse_mode="HTML"
-                    )
-                    logger.info("Sent image Q&A to Telegram")
-                except Exception as e:
-                    logger.error(f"Failed to send image Q&A to Telegram: {e}", exc_info=True)
-            
-            # Run in background
-            import asyncio
-            asyncio.create_task(send_to_telegram_task())
+            background_tasks.add_task(
+                _send_image_to_telegram,
+                kobo_companion.bot,
+                kobo_companion.chat_id,
+                image_bytes,
+                question,
+                answer
+            )
         
         return {
             "question": question,
