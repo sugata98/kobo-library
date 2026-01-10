@@ -853,12 +853,15 @@ Keep the diagram simple, clear, and focused on the core concept."""
             update: Telegram update object
             context: Telegram context object
         """
+        logger.info("📸 Photo message handler triggered")
+        
         if not update.message:
+            logger.debug("No message in update")
             return
         
         # Ignore messages not in the configured chat
         if str(update.effective_chat.id) != self.chat_id:
-            logger.debug(f"Ignoring message from chat {update.effective_chat.id}")
+            logger.info(f"❌ Ignoring photo from wrong chat: {update.effective_chat.id} (expected: {self.chat_id})")
             return
         
         # Ignore the bot's own messages
@@ -870,6 +873,8 @@ Keep the diagram simple, clear, and focused on the core concept."""
         if not update.message.photo:
             logger.debug("No photo in message, ignoring")
             return
+        
+        logger.info(f"✅ Photo message received from user {update.effective_user.id} in correct chat")
         
         # Check if the bot is mentioned in the caption
         bot_username = context.bot.username
@@ -1371,15 +1376,23 @@ class BotMentionFilter(filters.MessageFilter):
         Returns:
             True if this bot is mentioned, False otherwise
         """
-        if not message.entities:
+        # Check both text entities (for regular messages) and caption entities (for photos/media)
+        entities_to_check = []
+        text_to_check = ""
+        
+        if message.entities:
+            entities_to_check = message.entities
+            text_to_check = message.text or ""
+        elif message.caption_entities:
+            entities_to_check = message.caption_entities
+            text_to_check = message.caption or ""
+        else:
             return False
         
-        message_text = message.text or ""
-        
-        for entity in message.entities:
+        for entity in entities_to_check:
             # Check for @username mention
             if entity.type == "mention":
-                mention_text = message_text[entity.offset:entity.offset + entity.length]
+                mention_text = text_to_check[entity.offset:entity.offset + entity.length]
                 if mention_text == f"@{self.bot_username}":
                     return True
             # Check for text_mention (when user doesn't have a public username)
