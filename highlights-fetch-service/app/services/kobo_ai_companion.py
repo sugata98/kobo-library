@@ -7,9 +7,9 @@ Supports automatic diagram generation using gemini-2.5-flash-image.
 """
 
 import asyncio
+import html
 import io
 import logging
-import re
 from typing import Optional
 from telegram import Update, Bot, Message
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
@@ -151,7 +151,9 @@ class KoboAICompanion:
         """
         Escape HTML special characters for Telegram HTML parse mode.
         
-        As per Telegram documentation, these characters must be escaped:
+        Uses Python's html.escape() to properly escape only &, <, > without
+        double-escaping existing entities. As per Telegram documentation,
+        these characters must be escaped:
         - & → &amp;
         - < → &lt;
         - > → &gt;
@@ -162,10 +164,7 @@ class KoboAICompanion:
         Returns:
             HTML-escaped text
         """
-        return (text
-                .replace('&', '&amp;')
-                .replace('<', '&lt;')
-                .replace('>', '&gt;'))
+        return html.escape(text, quote=False)
     
     async def _safe_send_message(
         self,
