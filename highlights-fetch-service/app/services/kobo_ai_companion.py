@@ -7,11 +7,13 @@ Supports automatic diagram generation using gemini-2.5-flash-image.
 """
 
 import asyncio
+import html
 import io
 import logging
-from typing import Optional
-from telegram import Update, Bot
+from typing import Optional, Union
+from telegram import Update, Bot, Message
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
+from telegram.error import BadRequest
 from google import genai
 from app.core.config import settings
 
@@ -143,6 +145,100 @@ class KoboAICompanion:
             
         except Exception as e:
             logger.error(f"Error sending highlight with analysis: {e}", exc_info=True)
+            return None
+    
+    def _escape_html(self, text: str) -> str:
+        """
+        Escape HTML special characters for Telegram HTML parse mode.
+        
+        Uses Python's html.escape() to properly escape only &, <, > without
+        double-escaping existing entities. As per Telegram documentation,
+        these characters must be escaped:
+        - & → &amp;
+        - < → &lt;
+        - > → &gt;
+        
+        Args:
+            text: Text to escape
+            
+        Returns:
+            HTML-escaped text
+        """
+        return html.escape(text, quote=False)
+    
+    async def _safe_send_message(
+        self,
+        chat_id: Union[int, str],
+        text: str,
+        reply_to_message_id: Optional[int] = None,
+        use_html: bool = True,
+        **kwargs
+    ) -> Optional[Message]:
+        """
+        Safely send a message with formatting, falling back gracefully on errors.
+        
+        Strategy:
+        1. Try HTML mode (most robust for AI-generated content)
+        2. Fall back to Markdown if HTML fails
+        3. Fall back to plain text if both fail
+        
+        Args:
+            chat_id: Chat ID to send to (int or str)
+            text: Message text
+            reply_to_message_id: Optional message ID to reply to
+            use_html: Whether to prefer HTML mode (default: True)
+            **kwargs: Additional arguments for send_message
+            
+        Returns:
+            Sent message object or None if failed
+        """
+        # Try HTML first (most forgiving for AI-generated content)
+        if use_html:
+            try:
+                # Escape HTML special characters but preserve the text structure
+                escaped_text = self._escape_html(text)
+                return await self.bot.send_message(
+                    chat_id=chat_id,
+                    text=escaped_text,
+                    parse_mode="HTML",
+                    reply_to_message_id=reply_to_message_id,
+                    **kwargs
+                )
+            except BadRequest as e:
+                if "can't parse entities" in str(e).lower() or "can't find end" in str(e).lower():
+                    logger.warning(f"HTML parsing failed: {e}. Trying Markdown.")
+                else:
+                    logger.error(f"HTML BadRequest error: {e}", exc_info=True)
+            except Exception as e:
+                logger.warning(f"HTML mode failed: {e}. Trying Markdown.")
+        
+        # Fall back to Markdown
+        try:
+            return await self.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode="Markdown",
+                reply_to_message_id=reply_to_message_id,
+                **kwargs
+            )
+        except BadRequest as e:
+            if "can't parse entities" in str(e).lower() or "can't find end" in str(e).lower():
+                logger.warning(f"Markdown parsing failed: {e}. Falling back to plain text.")
+            else:
+                logger.error(f"Markdown BadRequest error: {e}", exc_info=True)
+        except Exception as e:
+            logger.warning(f"Markdown mode failed: {e}. Falling back to plain text.")
+        
+        # Final fallback: plain text
+        try:
+            return await self.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_to_message_id=reply_to_message_id,
+                **kwargs
+            )
+        except Exception as fallback_error:
+            logger.error(f"Failed to send message even as plain text: {fallback_error}", exc_info=True)
             return None
     
     async def generate_short_summary(
@@ -590,11 +686,16 @@ Keep the diagram simple, clear, and focused on the core concept."""
         # Generate response to general question
         response = await self.generate_general_answer(user_question)
         
-        # Reply to the user's message
-        reply_msg = await update.message.reply_text(
-            f"🤖 {response}",
-            parse_mode="Markdown"
+        # Reply to the user's message using safe send method
+        reply_msg = await self._safe_send_message(
+            chat_id=update.effective_chat.id,
+            text=f"🤖 {response}",
+            reply_to_message_id=update.message.message_id
         )
+        
+        if not reply_msg:
+            logger.error("Failed to send response message")
+            return
         
         # Check if user wants a visual/diagram
         if self._wants_visual_explanation(user_question):
@@ -671,11 +772,16 @@ Keep the diagram simple, clear, and focused on the core concept."""
         # Generate follow-up response
         follow_up_response = await self._generate_follow_up(user_question, previous_context)
         
-        # Reply to the user's question
-        reply_msg = await update.message.reply_text(
-            follow_up_response,
-            parse_mode="Markdown"
+        # Reply to the user's question using safe send method
+        reply_msg = await self._safe_send_message(
+            chat_id=update.effective_chat.id,
+            text=follow_up_response,
+            reply_to_message_id=update.message.message_id
         )
+        
+        if not reply_msg:
+            logger.error("Failed to send follow-up response message")
+            return
         
         # Check if user wants a visual/diagram
         if self._wants_visual_explanation(user_question):
