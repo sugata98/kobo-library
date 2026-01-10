@@ -10,7 +10,7 @@ import asyncio
 import html
 import io
 import logging
-from typing import Optional
+from typing import Optional, Union
 from telegram import Update, Bot, Message
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
 from telegram.error import BadRequest
@@ -168,7 +168,7 @@ class KoboAICompanion:
     
     async def _safe_send_message(
         self,
-        chat_id: str,
+        chat_id: Union[int, str],
         text: str,
         reply_to_message_id: Optional[int] = None,
         use_html: bool = True,
@@ -183,7 +183,7 @@ class KoboAICompanion:
         3. Fall back to plain text if both fail
         
         Args:
-            chat_id: Chat ID to send to
+            chat_id: Chat ID to send to (int or str)
             text: Message text
             reply_to_message_id: Optional message ID to reply to
             use_html: Whether to prefer HTML mode (default: True)
