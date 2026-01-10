@@ -10,6 +10,7 @@ import asyncio
 import html
 import io
 import logging
+import re
 from typing import Optional, Union, List
 from telegram import Update, Bot, Message, PhotoSize
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
@@ -150,6 +151,63 @@ class KoboAICompanion:
             logger.error(f"Error sending highlight with analysis: {e}", exc_info=True)
             return None
     
+    def _markdown_to_html(self, text: str) -> str:
+        """
+        Convert common Markdown syntax to HTML tags for Telegram HTML parse mode.
+        
+        This is used as a fallback when Markdown parsing fails. It converts:
+        - **bold** → <b>bold</b>
+        - *italic* → <i>italic</i>
+        - __underline__ → <u>underline</u>
+        - ### Heading → <b>Heading</b>
+        - `code` → <code>code</code>
+        - [link](url) → <a href="url">link</a>
+        
+        Args:
+            text: Text with Markdown syntax
+            
+        Returns:
+            Text with HTML tags
+        """
+        # First, escape HTML special characters to avoid conflicts
+        text = html.escape(text, quote=False)
+        
+        # Convert headings (###, ##, #) to bold
+        text = re.sub(r'^#{1,6}\s+(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
+        
+        # Convert **bold** (must be before * for italic)
+        text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+        
+        # Convert __underline__
+        text = re.sub(r'__(.+?)__', r'<u>\1</u>', text)
+        
+        # Convert *italic* (single asterisk)
+        text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
+        
+        # Convert _italic_ (single underscore) 
+        text = re.sub(r'(?<!\w)_(.+?)_(?!\w)', r'<i>\1</i>', text)
+        
+        # Convert `code`
+        text = re.sub(r'`(.+?)`', r'<code>\1</code>', text)
+        
+        # Convert [link](url) - extract URL first since it's already escaped
+        def replace_link(match):
+            link_text = match.group(1)
+            url = match.group(2)
+            # Unescape the URL since we escaped it earlier
+            url = url.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+            return f'<a href="{url}">{link_text}</a>'
+        
+        text = re.sub(r'\[(.+?)\]\((.+?)\)', replace_link, text)
+        
+        # Convert bullet points (-, *, +) to • 
+        text = re.sub(r'^[\-\*\+]\s+', '• ', text, flags=re.MULTILINE)
+        
+        # Convert numbered lists (1., 2., etc.)
+        text = re.sub(r'^\d+\.\s+', lambda m: f'{m.group(0)} ', text, flags=re.MULTILINE)
+        
+        return text
+    
     def _escape_html(self, text: str) -> str:
         """
         Escape HTML special characters for Telegram HTML parse mode.
@@ -213,13 +271,13 @@ class KoboAICompanion:
             except Exception as e:
                 logger.warning(f"Markdown mode failed: {e}. Trying HTML.")
         
-        # Fall back to HTML (escape special chars and send)
+        # Fall back to HTML (convert Markdown to HTML tags)
         try:
-            # Escape HTML special characters but preserve the text structure
-            escaped_text = self._escape_html(text)
+            # Convert Markdown syntax to HTML tags
+            html_text = self._markdown_to_html(text)
             return await self.bot.send_message(
                 chat_id=chat_id,
-                text=escaped_text,
+                text=html_text,
                 parse_mode="HTML",
                 reply_to_message_id=reply_to_message_id,
                 **kwargs
