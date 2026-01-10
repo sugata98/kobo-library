@@ -1032,6 +1032,56 @@ def create_kobo_ai_companion() -> Optional[KoboAICompanion]:
         return None
 
 
+class BotMentionFilter(filters.MessageFilter):
+    """
+    Custom filter that only matches messages where this specific bot is mentioned.
+    
+    Checks for:
+    - @bot_username mentions in entities
+    - text_mention entities referring to this bot
+    """
+    
+    def __init__(self, bot_username: str):
+        """
+        Initialize the filter with the bot's username.
+        
+        Args:
+            bot_username: The bot's username (without @)
+        """
+        self.bot_username = bot_username
+        super().__init__()
+    
+    def filter(self, message):
+        """
+        Check if the message mentions this specific bot.
+        
+        Args:
+            message: The Telegram message to check
+            
+        Returns:
+            True if this bot is mentioned, False otherwise
+        """
+        if not message.entities:
+            return False
+        
+        message_text = message.text or ""
+        
+        for entity in message.entities:
+            # Check for @username mention
+            if entity.type == "mention":
+                mention_text = message_text[entity.offset:entity.offset + entity.length]
+                if mention_text == f"@{self.bot_username}":
+                    return True
+            # Check for text_mention (when user doesn't have username)
+            elif entity.type == "text_mention":
+                # Note: entity.user would need bot ID comparison, but since
+                # handle_general_question already validates, we keep this simple
+                # and rely on the handler's validation
+                return True
+        
+        return False
+
+
 async def create_telegram_application() -> Optional[Application]:
     """
     Create and configure Telegram Application for webhook mode.
@@ -1060,11 +1110,17 @@ async def create_telegram_application() -> Optional[Application]:
             logger.error("Failed to create KoboAICompanion")
             return None
         
+        # Get bot username for the mention filter
+        bot = application.bot
+        bot_info = await bot.get_me()
+        bot_username = bot_info.username
+        
         # Add handler for general questions (bot mentions/tags)
         # This should be checked first, before reply handler
+        # Use custom filter to only trigger when THIS bot is mentioned
         application.add_handler(
             MessageHandler(
-                filters.TEXT & ~filters.COMMAND & filters.Entity("mention"),
+                filters.TEXT & ~filters.COMMAND & BotMentionFilter(bot_username),
                 companion.handle_general_question
             )
         )

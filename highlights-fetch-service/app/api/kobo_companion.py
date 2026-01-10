@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Header, Request, BackgroundTasks, 
 from pydantic import BaseModel, Field
 from typing import Optional
 import logging
+import html
 
 from app.core.config import settings
 
@@ -244,10 +245,14 @@ async def ask_general_question(
         if request.send_to_telegram:
             async def send_to_telegram():
                 try:
+                    # Escape HTML special characters to prevent parsing errors
+                    escaped_question = html.escape(request.question)
+                    escaped_answer = html.escape(answer)
+                    
                     await kobo_companion.bot.send_message(
                         chat_id=kobo_companion.chat_id,
-                        text=f"❓ *Question:*\n{request.question}\n\n🤖 *Answer:*\n{answer}",
-                        parse_mode="Markdown"
+                        text=f"❓ <b>Question:</b>\n{escaped_question}\n\n🤖 <b>Answer:</b>\n{escaped_answer}",
+                        parse_mode="HTML"
                     )
                     logger.info("Sent general Q&A to Telegram")
                 except Exception as e:

@@ -5,7 +5,7 @@
 ### 1. Telegram Bot Tagging Support
 
 **New Function: `handle_general_question()`**
-- Location: `app/services/kobo_ai_companion.py` (lines 492-545)
+- Location: `app/services/kobo_ai_companion.py`
 - Detects when the bot is mentioned/tagged in Telegram messages
 - Extracts the question by removing the bot mention
 - Generates and replies with an AI-powered answer
@@ -20,7 +20,7 @@
 ### 2. AI Answer Generation
 
 **New Function: `_generate_general_answer()`**
-- Location: `app/services/kobo_ai_companion.py` (lines 547-596)
+- Location: `app/services/kobo_ai_companion.py`
 - Uses Gemini AI (`gemini-3-flash-preview`) for fast, high-quality responses
 - Handles both technical and general topics
 - Provides concise (2-3 paragraph) but comprehensive answers
@@ -36,7 +36,7 @@
 ### 3. API Endpoint for Programmatic Access
 
 **New Endpoint: `POST /kobo-companion/ask`**
-- Location: `app/api/kobo_companion.py` (lines 212-270)
+- Location: `app/api/kobo_companion.py` in `ask_general_question()`
 - Accepts questions via API with authentication
 - Returns immediate JSON response
 - Optionally sends Q&A to Telegram in background
@@ -67,15 +67,15 @@
 ### 4. Handler Registration
 
 **Updated: `create_telegram_application()`**
-- Location: `app/services/kobo_ai_companion.py` (lines 643-685)
+- Location: `app/services/kobo_ai_companion.py`
 - Registers two message handlers in correct order:
-  1. General questions (bot mentions) - checked first
+  1. General questions (bot mentions) - checked first with `BotMentionFilter`
   2. Follow-up questions (replies) - checked second
 
 **Filter Logic:**
 ```python
-# Handler 1: Mentions
-filters.TEXT & ~filters.COMMAND & filters.Entity("mention")
+# Handler 1: Bot Mentions (custom filter for specific bot)
+filters.TEXT & ~filters.COMMAND & BotMentionFilter(bot_username)
 
 # Handler 2: Replies
 filters.TEXT & ~filters.COMMAND & filters.REPLY

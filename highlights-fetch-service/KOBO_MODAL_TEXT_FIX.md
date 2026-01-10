@@ -21,18 +21,23 @@ But you're seeing three problems in the modal:
 ## Root Causes
 
 ### 1. **Emoji Issue**
+
 Kobo's NickelMenu `cmd_output` dialog doesn't support Unicode emojis. When it encounters `✨` or `📱`, it either:
+
 - Shows garbled characters
 - Causes parsing errors
 - Breaks the dialog display
 
 ### 2. **Text Wrapping Issue**
+
 NickelMenu's dialog has a fixed width (~40-50 characters) and doesn't automatically wrap long lines. If a line is too long:
+
 - It gets truncated (cut off)
 - User only sees the first part
 - Rest is hidden
 
 ### 3. **Format Issue**
+
 The current output format might have hidden characters or formatting that NickelMenu doesn't understand, causing the "invalid parameter count" error.
 
 ---
@@ -42,6 +47,7 @@ The current output format might have hidden characters or formatting that Nickel
 Update the script's output section (around lines 182-186) to use **plain ASCII text only** and **manual line wrapping**:
 
 ### Current Code (Problematic):
+
 ```bash
 # Output to stdout - NickelMenu will show this in a dialog
 echo "✨ AI Explanation"
@@ -52,6 +58,7 @@ echo "📱 Full analysis sent to Telegram"
 ```
 
 ### Fixed Code:
+
 ```bash
 # Output to stdout - NickelMenu will show this in a dialog
 # Use plain ASCII (no emojis) and wrap text manually
@@ -65,6 +72,7 @@ echo "Telegram!"
 ```
 
 **Key Changes:**
+
 1. ✅ Removed emojis (`✨` → `---`, `📱` → plain text)
 2. ✅ Added `fold -s -w 40` to wrap text at 40 characters
 3. ✅ Split long lines manually ("Full analysis sent to Telegram" → two lines)
@@ -81,11 +89,13 @@ echo "$RESPONSE"
 ```
 
 **Pros:**
+
 - ✅ No special formatting to cause errors
 - ✅ Just shows the AI explanation
 - ✅ Most reliable
 
 **Cons:**
+
 - ⚠️ No header/footer
 - ⚠️ User might not know it sent to Telegram
 
@@ -104,7 +114,7 @@ if [ $CURL_EXIT -eq 0 ] && [ -n "$RESPONSE" ]; then
     # Full analysis is sent to Telegram automatically
     echo "SUCCESS: Response received (${#RESPONSE} chars)" >> "$LOG_FILE"
     echo "Response: '$RESPONSE'" >> "$LOG_FILE"
-    
+
     # Output to stdout - Plain ASCII only, wrapped to 40 chars
     echo "=== AI Explanation ==="
     echo ""
@@ -114,13 +124,13 @@ if [ $CURL_EXIT -eq 0 ] && [ -n "$RESPONSE" ]; then
     echo "---"
     echo "Full details sent to"
     echo "your Telegram chat."
-    
+
     echo "Dialog output sent to stdout" >> "$LOG_FILE"
 else
     # Error: Output error to stdout
     echo "ERROR: curl failed with exit code $CURL_EXIT or empty response" >> "$LOG_FILE"
     echo "Response (if any): $RESPONSE" >> "$LOG_FILE"
-    
+
     # Output to stdout - Plain ASCII only
     echo "=== Connection Error ==="
     echo ""
@@ -148,10 +158,10 @@ For quickest testing, try the **ultra-simple version** first:
 if [ $CURL_EXIT -eq 0 ] && [ -n "$RESPONSE" ]; then
     echo "Response received (${#RESPONSE} chars)" >> "$LOG_FILE"
     echo "Response: '$RESPONSE'" >> "$LOG_FILE"
-    
+
     # Just output the response, nothing else
     echo "$RESPONSE"
-    
+
     echo "Dialog output sent to stdout" >> "$LOG_FILE"
 else
     echo "ERROR: curl failed" >> "$LOG_FILE"
@@ -172,31 +182,33 @@ fi
 
 **NickelMenu's `cmd_output` limitations:**
 
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| Emojis don't render | Kobo firmware doesn't support Unicode emojis | Use ASCII only (`---`, `***`) |
-| Text gets cut off | No automatic wrapping, fixed width dialog | Use `fold -s -w 40` |
-| "Invalid parameter" error | Special characters or formatting | Plain text only |
+| Issue                     | Cause                                        | Fix                           |
+| ------------------------- | -------------------------------------------- | ----------------------------- |
+| Emojis don't render       | Kobo firmware doesn't support Unicode emojis | Use ASCII only (`---`, `***`) |
+| Text gets cut off         | No automatic wrapping, fixed width dialog    | Use `fold -s -w 40`           |
+| "Invalid parameter" error | Special characters or formatting             | Plain text only               |
 
 ---
 
 ## Expected Results
 
 ### Success Dialog (Simple Version):
+
 ```
-Decouple storage from the 
-notification server to enable 
-independent scaling and improve 
+Decouple storage from the
+notification server to enable
+independent scaling and improve
 architectural flexibility.
 ```
 
 ### Success Dialog (Formatted Version):
+
 ```
 === AI Explanation ===
 
-Decouple storage from the 
-notification server to enable 
-independent scaling and improve 
+Decouple storage from the
+notification server to enable
+independent scaling and improve
 architectural flexibility.
 
 ---
@@ -212,12 +224,15 @@ your Telegram chat.
 
 1. **Try ultra-simple version** (just `echo "$RESPONSE"`)
 2. **Check for hidden characters:**
+
    ```bash
    cat -A /mnt/onboard/.adds/nm/scripts/ask_gemini.sh | tail -30
    ```
+
    Look for `^M` (Windows line endings) or other weird chars
 
 3. **Verify NickelMenu syntax:**
+
    ```bash
    cat /mnt/onboard/.adds/nm/config
    # Should show: cmd_output :8000:
@@ -233,14 +248,16 @@ your Telegram chat.
 
 ## Summary
 
-✅ **Root Cause:** Emojis and long unwr apped text breaking NickelMenu's dialog
+✅ **Root Cause:** Emojis and long unwrapped text breaking NickelMenu's dialog
 
-✅ **Solution:** 
+✅ **Solution:**
+
 1. Remove all emojis (use ASCII alternatives)
 2. Wrap text to 40 characters using `fold -s -w 40`
 3. Keep output simple and plain
 
-✅ **Best Practice:** 
+✅ **Best Practice:**
+
 - Test with ultra-simple output first (`echo "$RESPONSE"` only)
 - Add formatting only if simple version works
 
