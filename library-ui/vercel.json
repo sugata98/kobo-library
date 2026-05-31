@@ -3,12 +3,5 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "redirects": [
-    {
-      "source": "/me",
-      "destination": "https://portfolio-ten-flax-23.vercel.app",
-      "permanent": false
-    }
-  ]
+  "installCommand": "npm install"
 }
