@@ -4,11 +4,7 @@
   "outputDirectory": ".next",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "redirects": [
-    {
-      "source": "/me",
-      "destination": "https://portfolio-ten-flax-23.vercel.app",
-      "permanent": false
-    }
+  "rewrites": [
+    { "source": "/me", "destination": "/portfolio.html" }
   ]
 }
