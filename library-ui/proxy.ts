@@ -87,7 +87,6 @@ export async function proxy(request: NextRequest) {
   // Skip middleware for login page and static assets
   if (
     request.nextUrl.pathname === "/login" ||
-    request.nextUrl.pathname === "/me" ||
     request.nextUrl.pathname.startsWith("/_next") ||
     request.nextUrl.pathname.startsWith("/api") ||
     request.nextUrl.pathname.match(
